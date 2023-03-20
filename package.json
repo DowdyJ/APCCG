@@ -1,6 +1,7 @@
 {
   "dependencies": {
     "discord.js": "^14.8.0",
+    "node-libcurl": "^3.0.0",
     "sqlite3": "^5.1.6"
   },
   "devDependencies": {

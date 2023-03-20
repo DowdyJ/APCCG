@@ -4,6 +4,7 @@ import { ICommand } from './command/icommand.js'
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'url';
+import settings from '../settings.json' assert { type: "json"}
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -63,6 +64,7 @@ export class CustomClient extends discord.Client {
 
         for (const command of this.commands) {
             if (!command.Disabled()) {
+                console.log(`Registering command named: ${command.CommandData().name}`);
                 commands.push(command.CommandData());
             }
         }
@@ -74,12 +76,15 @@ export class CustomClient extends discord.Client {
         (async () => {
             await this._GetCommands();
             try {
-              console.log('Updating slash commands...');
-          
-              await this._rest.put(Routes.applicationCommands(this._applicationID), { body: this._GetSlashCommandBuilders() });
-          
+                if (!settings.REGISTER_COMANDS)
+                    return;
+                
+                    console.log('Updating slash commands...');
+
+                await this._rest.put(Routes.applicationCommands(this._applicationID), { body: this._GetSlashCommandBuilders() });
+            
             } catch (error) {
-              console.error(error);
+                console.error(error);
             }
           })();
     }

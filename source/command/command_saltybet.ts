@@ -4,7 +4,7 @@ import { ICommand } from "./icommand.js";
 import { Logger, MessageType } from "../logger.js"
 import discord from "discord.js"
 
-import { Curl } from "node-libcurl";
+import { Curl, HeaderInfo } from "node-libcurl";
 import querystring from 'querystring';
 
 export { SaltyBetCommands as Command };
@@ -34,15 +34,20 @@ class SaltyBetCommands implements ICommand
         .addSubcommand(subcommand =>
           subcommand
             .setName("stop")
-            .setDescription("stop logging SaltyBet match data to channel"));
+            .setDescription("stop logging SaltyBet match data to channel"))
+        .addSubcommand(subcommand =>
+          subcommand
+            .setName("test")
+            .setDescription("test function")
+        );
     }
 
     async Execute(args: any[]): Promise<boolean> {
         const interaction = args[0] as discord.CommandInteraction;
+
+        // Filters down command type so that getSubcommand() will work
         if (interaction.type !== InteractionType.ApplicationCommand || !interaction.isChatInputCommand()) 
           return false;
-
-        console.log(interaction.commandName);
 
         let subcommandName : string = interaction.options.getSubcommand();
 
@@ -58,9 +63,14 @@ class SaltyBetCommands implements ICommand
               interaction.options.get("teamnumber")?.value as number ?? 1, 
               interaction.options.get("betamount")?.value as number ?? 0);
           case 'start':
+            interaction.reply(`You have \$${await this.GetCurrentDollarAmount(interaction)}`);
             return false;
           case 'stop':
+            await this.GetActiveTeamsData();
             return false;
+          case 'test':
+            await this.IsCookieValid(interaction);
+            return true;
           default:
             Logger.log("Invalid subcommand run on salty", MessageType.ERROR);
 
@@ -89,7 +99,7 @@ class SaltyBetCommands implements ICommand
               authenticate : 'signin'
           }));
 
-          curl.setOpt("COOKIEJAR", this.GetCookieFileName(interaction));
+          curl.setOpt(Curl.option.COOKIEJAR, this.GetCookieFileName(interaction));
 
           curl.on('error', close);
 
@@ -119,7 +129,7 @@ class SaltyBetCommands implements ICommand
       
           curl.perform();
         });
-  }
+    }
 
     async VoteForTeam(interaction : discord.CommandInteraction, teamNumber : number, amount : number) : Promise<boolean> {
       let activeTeamsData = await this.GetActiveTeamsData();
@@ -135,7 +145,7 @@ class SaltyBetCommands implements ICommand
 
           curl.setOpt(Curl.option.URL, postUrl);
           curl.setOpt(Curl.option.POST, true)
-          curl.setOpt(Curl.option.COOKIE, this.GetCookieFileName(interaction));
+          curl.setOpt(Curl.option.COOKIEFILE, this.GetCookieFileName(interaction));
           curl.setOpt(Curl.option.POSTFIELDS, querystring.stringify({
               selectedplayer : selectedPlayerValue,
               wager : amount,
@@ -162,7 +172,7 @@ class SaltyBetCommands implements ICommand
       
           curl.perform();
         });
-      }
+    }
 
     async GetActiveTeamsData(): Promise<ActiveTeamsData | null> {
         return new Promise<ActiveTeamsData | null>((resolve, reject) => {
@@ -213,11 +223,90 @@ class SaltyBetCommands implements ICommand
       
           curl.perform();
         });
-      }
+    }
 
-      GetCookieFileName(interaction : discord.CommandInteraction) : string {
+    async GetCurrentDollarAmount(interaction : discord.CommandInteraction) : Promise<string> {
+      return new Promise<string>((resolve, reject) => {
+        let curl = new Curl();
+        let requestUrl: string = `https://www.saltybet.com/`;
+        curl.setOpt(Curl.option.URL, requestUrl);
+        curl.setOpt(Curl.option.COOKIEFILE, this.GetCookieFileName(interaction));
+
+        curl.on('end', function(statusCode, data, headers) {
+          this.close();
+          resolve(SaltyBetCommands.ExtractDollarBalanceFromHTML(data as string));
+        });
+    
+        curl.on('error', (err) => {
+          Logger.log(`Error: ${err.message}`, MessageType.ERROR);
+          reject(err.message);
+        });
+    
+        curl.perform();
+      });      
+
+    }
+
+    async IsCookieValid(interaction : discord.CommandInteraction) : Promise<boolean> {
+      return new Promise<boolean>((resolve, reject) => {
+        let curl = new Curl();
+        let requestUrl: string = `https://www.saltybet.com/ajax_get_rank.php`;
+
+        curl.setOpt(Curl.option.URL, requestUrl);
+        curl.setOpt(Curl.option.COOKIEFILE, this.GetCookieFileName(interaction));
+
+        curl.on('end', function(statusCode, data, headers) {
+          Logger.log(`Status: ${statusCode}`, MessageType.DEBUG);
+          Logger.log(`Return payload: ${data as string}`, MessageType.DEBUG);
+          
+          if (statusCode !== 200) {
+            Logger.log(`Received unexpected response code: ${statusCode}`, MessageType.WARNING);
+            reject(`Received unexpected response code: ${statusCode}`);
+          }
+          
+          SaltyBetCommands.PrintHeaders(headers as Array<HeaderInfo>);
+
+          if (data) {
+            this.close();
+            resolve(true);
+          } else {
+            this.close();
+            resolve(false);
+          }
+        });
+    
+        curl.on('error', (err) => {
+          Logger.log(`Error: ${err.message}`, MessageType.ERROR);
+          reject(err.message);
+        });
+    
+        curl.perform();
+      });    
+    }
+
+    public static PrintHeaders(headers : HeaderInfo[]) : void {
+      headers.forEach(element => {
+        Logger.log("----START HEADER----", MessageType.DEBUG);
+        Logger.log(element.result?.version, MessageType.DEBUG);
+        Logger.log(element.result?.reason, MessageType.DEBUG);
+        Logger.log(element.result?.code, MessageType.DEBUG);
+        Logger.log(element["Set-Cookie"], MessageType.DEBUG);
+        Logger.log("-----END HEADER-----", MessageType.DEBUG);
+      });
+    }
+
+    public static ExtractDollarBalanceFromHTML(data : string) : string {
+      let moneyValue : string = "🤷‍♂️";
+      let matchResults = data.match('class="dollar" id="balance">([0-9,]+)<\/span>');
+      if (matchResults !== null)
+        moneyValue = matchResults[1].replace(/,/g, '');
+      
+      return moneyValue;
+    }
+
+    GetCookieFileName(interaction : discord.CommandInteraction) : string {
         return `salty_cookies/${interaction.user.id}.txt`;
-      }
+    }
 } 
 
 

@@ -1,9 +1,10 @@
 import discord from 'discord.js'
 import { GatewayIntentBits } from 'discord.js';
 import hmt from './hmt.json' assert { type: "json"}
-
+import settings from './settings.json' assert { type: "json"}
 
 import { CustomClient } from "./source/customclient.js"
+
 
 let TOKEN : string = hmt.APCCG_BOT_TOKEN;
 let ApplicationID : string = hmt.APPLICATION_ID;

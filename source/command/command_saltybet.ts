@@ -1,4 +1,4 @@
-import { Message, SlashCommandBuilder } from "discord.js";
+import { Message, SlashCommandBuilder, InteractionType } from "discord.js";
 import { Command } from "./command_daily";
 import { ICommand } from "./icommand.js";
 import { Logger, MessageType } from "../logger.js"
@@ -11,117 +11,158 @@ export { SaltyBetCommands as Command };
 
 class SaltyBetCommands implements ICommand
 {
-    CommandData(): SlashCommandBuilder {
-        return new SlashCommandBuilder().setName("saltyinfo").setDescription("Get active team data");
+    CommandData(): any {
+        return new SlashCommandBuilder()
+        .setName("salty")
+        .setDescription("Interact with SaltyBet")
+        .addSubcommand(subcommand => 
+          subcommand
+            .setName("sign-in")
+            .setDescription("sign in to SaltyBet")
+            .addStringOption((input) => input.setRequired(true).setName('email').setDescription("email for sign-in"))
+            .addStringOption((input) => input.setRequired(true).setName('password').setDescription("password for sign-in")))
+        .addSubcommand(subcommand => 
+          subcommand
+            .setName("bet")
+            .setDescription("bet for a team")
+            .addNumberOption((input) => input.setRequired(true).setName("teamnumber").setChoices({name: "team 1", value: 1}, {name: "team 2", value:2}).setDescription("team to vote for"))
+            .addNumberOption((input) => input.setRequired(true).setName("betamount").setDescription("amount to bet")))
+        .addSubcommand(subcommand =>
+          subcommand
+            .setName("start")
+            .setDescription("start logging SaltyBet match data to channel"))
+        .addSubcommand(subcommand =>
+          subcommand
+            .setName("stop")
+            .setDescription("stop logging SaltyBet match data to channel"));
     }
 
     async Execute(args: any[]): Promise<boolean> {
         const interaction = args[0] as discord.CommandInteraction;
-        
-        const teamData = await this.GetActiveTeamsData();
+        if (interaction.type !== InteractionType.ApplicationCommand || !interaction.isChatInputCommand()) 
+          return false;
 
-        if (teamData === null) {
-            interaction.reply("Failed to get response 😔");
+        console.log(interaction.commandName);
+
+        let subcommandName : string = interaction.options.getSubcommand();
+
+        switch (subcommandName) {
+          case 'sign-in':
+            return await this.SignIn(
+              interaction, 
+              interaction.options.get("email")?.value as string, 
+              interaction.options.get("password")?.value as string);
+          case 'bet':
+            return await this.VoteForTeam(
+              interaction,
+              interaction.options.get("teamnumber")?.value as number ?? 1, 
+              interaction.options.get("betamount")?.value as number ?? 0);
+          case 'start':
             return false;
+          case 'stop':
+            return false;
+          default:
+            Logger.log("Invalid subcommand run on salty", MessageType.ERROR);
+
+
         }
-        
-        let ratioString : string = +teamData.p1total === 0 || +teamData.p2total === 0 ? "N/A" : (+teamData.p1total > +teamData.p2total ? `${(+teamData.p1total/+teamData.p2total).toFixed(2)} : 1` : `1 : ${(+teamData.p2total/+teamData.p1total).toFixed(2)}`);
-        
-        interaction.reply(`Team 1: ${teamData.p1name}\nTeam 2: ${teamData.p2name}\nBetting odds: ${ratioString}\nMatches remaining: ${teamData.remaining}`);
-        
-
-        await this.SignIn(interaction, "joeldowdy7@gmail.com", "Ds86pTak");
-
-        await this.VoteForTeam(interaction, 1, 1000);
-
         return true;
 
     }
 
     Disabled(): boolean {
-        return true;
+        return false;
     }
 
     async SignIn(interaction : discord.CommandInteraction, username : string, password : string) : Promise<boolean> {
-        return new Promise<boolean>((resolve, reject) => {
-            let curl = new Curl();
-            let postUrl: string = `https://www.saltybet.com/authenticate?signin=1`
+      return new Promise<boolean>((resolve, reject) => {
+          let curl = new Curl();
+          let postUrl: string = `https://www.saltybet.com/authenticate?signin=1`
 
-            const close = curl.close.bind(curl);
+          const close = curl.close.bind(curl);
 
-            curl.setOpt(Curl.option.URL, postUrl);
-            curl.setOpt(Curl.option.POST, true)
-            curl.setOpt(Curl.option.POSTFIELDS, querystring.stringify({
-                email: username,
-                pword : password,
-                authenticate : 'signin'
-            }));
+          curl.setOpt(Curl.option.URL, postUrl);
+          curl.setOpt(Curl.option.POST, true)
+          curl.setOpt(Curl.option.POSTFIELDS, querystring.stringify({
+              email: username,
+              pword : password,
+              authenticate : 'signin'
+          }));
 
-            curl.setOpt("COOKIEJAR", this.GetCookieFileName(interaction));
+          curl.setOpt("COOKIEJAR", this.GetCookieFileName(interaction));
 
-            curl.on('error', close);
+          curl.on('error', close);
 
-            curl.on('end', function(statusCode, data, headers) {
-              Logger.log(`Status: ${statusCode}`, MessageType.DEBUG);
-              Logger.log(`Return payload: ${data}`, MessageType.DEBUG);
-              Logger.log(`Headers: ${headers}`, MessageType.DEBUG);
-              Logger.log(this.getInfo('TOTAL_TIME'), MessageType.DEBUG);
-        
-              if (statusCode !== 302) {
-                Logger.log(`Received unexpected response code: ${statusCode}`, MessageType.WARNING);
-                reject(`Received unexpected response code: ${statusCode}`);
-                return false;
-              }
+          curl.on('end', function(statusCode, data, headers) {
+            Logger.log(`Status: ${statusCode}`, MessageType.DEBUG);
+            Logger.log(`Return payload: ${data}`, MessageType.DEBUG);
+            Logger.log(`Headers: ${headers}`, MessageType.DEBUG);
+            Logger.log(this.getInfo('TOTAL_TIME'), MessageType.DEBUG);
+      
+            if (statusCode !== 302) {
+              Logger.log(`Received unexpected response code: ${statusCode}`, MessageType.WARNING);
+              reject(`Received unexpected response code: ${statusCode}`);
+              interaction.reply({ephemeral: true, content:"Failed to log in."})
+              return false;
+            }
 
-              this.close();
-              resolve(true);
-            });
-        
-            curl.on('error', (err) => {
-              Logger.log(`Error: ${err.message}`, MessageType.ERROR);
-              reject(err.message);
-            });
-        
-            curl.perform();
+            interaction.reply({ephemeral: true, content:"Successfully logged in."})
+            this.close();
+            resolve(true);
           });
-    }
+      
+          curl.on('error', (err) => {
+            Logger.log(`Error: ${err.message}`, MessageType.ERROR);
+            interaction.reply({ephemeral: true, content:"Failed to log in."})
+            reject(err.message);
+          });
+      
+          curl.perform();
+        });
+  }
 
     async VoteForTeam(interaction : discord.CommandInteraction, teamNumber : number, amount : number) : Promise<boolean> {
-        return new Promise<boolean>((resolve, reject) => {
-            let curl = new Curl();
-            let postUrl: string = `https://www.saltybet.com/ajax_place_bet.php`
-            let selectedPlayerValue : string = teamNumber === 1 ? "player1" : "player2";
-            const close = curl.close.bind(curl);
+      let activeTeamsData = await this.GetActiveTeamsData();
+
+      return new Promise<boolean>((resolve, reject) => {
+          Logger.log(`Trying to vote for team number ${teamNumber} with \$${amount}`, MessageType.DEBUG);
+
+          let curl = new Curl();
+          let postUrl: string = `https://www.saltybet.com/ajax_place_bet.php`
+          let selectedPlayerValue : string = teamNumber === 1 ? "player1" : "player2";
+          const close = curl.close.bind(curl);
+          
+
+          curl.setOpt(Curl.option.URL, postUrl);
+          curl.setOpt(Curl.option.POST, true)
+          curl.setOpt(Curl.option.COOKIE, this.GetCookieFileName(interaction));
+          curl.setOpt(Curl.option.POSTFIELDS, querystring.stringify({
+              selectedplayer : selectedPlayerValue,
+              wager : amount,
+          }));
+
+          curl.on('end', function(statusCode, data, headers) {
+            Logger.log(`Status: ${statusCode}`, MessageType.DEBUG);
+            Logger.log(`Return payload: ${data}`, MessageType.DEBUG);
+            Logger.log(`Return headers: ${headers}`, MessageType.DEBUG);
+            Logger.log(this.getInfo('TOTAL_TIME'), MessageType.DEBUG);
             
-            curl.setOpt(Curl.option.URL, postUrl);
-            curl.setOpt(Curl.option.POST, true)
-            curl.setOpt(Curl.option.COOKIE, this.GetCookieFileName(interaction));
-            curl.setOpt(Curl.option.POSTFIELDS, querystring.stringify({
-                selectedplayer : selectedPlayerValue,
-                wager : amount,
-            }));
-
-
-            curl.on('error', close);
-        
-            curl.on('end', function(statusCode, data, headers) {
-              Logger.log(`Status: ${statusCode}`, MessageType.DEBUG);
-              Logger.log(`Return payload: ${data}`, MessageType.DEBUG);
-              Logger.log(`Return headers: ${headers}`, MessageType.DEBUG);
-              Logger.log(this.getInfo('TOTAL_TIME'), MessageType.DEBUG);
-        
-              this.close();
-              resolve(true);
-            });
-        
-            curl.on('error', (err) => {
-              Logger.log(`Error: ${err.message}`, MessageType.ERROR);
-              reject(err.message);
-            });
-        
-            curl.perform();
+            interaction.reply({content: `Bet \$${amount} on ${selectedPlayerValue === 'player1' ? activeTeamsData?.p1name : activeTeamsData?.p2name}!`})
+            
+            this.close();
+            resolve(true);
           });
-        }
+      
+          curl.on('error', (err) => {
+            Logger.log(`Error: ${err.message}`, MessageType.ERROR);
+            interaction.reply({content:"Failed to bet."});
+            close();
+            reject(err.message);
+          });
+      
+          curl.perform();
+        });
+      }
 
     async GetActiveTeamsData(): Promise<ActiveTeamsData | null> {
         return new Promise<ActiveTeamsData | null>((resolve, reject) => {
@@ -175,7 +216,7 @@ class SaltyBetCommands implements ICommand
       }
 
       GetCookieFileName(interaction : discord.CommandInteraction) : string {
-        return `${interaction.user.id}.txt`;
+        return `salty_cookies/${interaction.user.id}.txt`;
       }
 } 
 

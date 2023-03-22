@@ -5,12 +5,15 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'url';
 import settings from '../settings.json' assert { type: "json"}
+import hmt from '../hmt.json' assert { type: "json"}
+import { GatewayIntentBits } from 'discord.js';
+
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 export class CustomClient extends discord.Client {
-    public constructor(options : discord.ClientOptions, token : string, applicationID : string) {
+    private constructor(options : discord.ClientOptions, token : string, applicationID : string) {
         super(options);
         this._token = token;
         this._applicationID = applicationID;
@@ -18,7 +21,24 @@ export class CustomClient extends discord.Client {
         this._InitializeCommands();
         return;
     }
-    
+
+    private static _client : CustomClient | null = null;
+
+    public static Instance() : CustomClient {
+        if (CustomClient._client === null) {
+            let TOKEN : string = hmt.APCCG_BOT_TOKEN;
+            let ApplicationID : string = hmt.APPLICATION_ID;
+
+            CustomClient._client = new CustomClient({ intents: [GatewayIntentBits.Guilds] }, TOKEN, ApplicationID);
+        }
+
+        return CustomClient._client;
+    }
+
+    public async LogIn() : Promise<void> {
+        await this.login(this._token);
+    }
+
     private _token : string;
     private _applicationID : string;
     private _rest : REST;

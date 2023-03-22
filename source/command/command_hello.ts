@@ -19,7 +19,7 @@ class CommandHello implements ICommand {
     public async Execute(args: any[]): Promise<boolean> {
         let interaction = (args[0] as discord.CommandInteraction);
 
-        await interaction.reply('Pong!');
+        await interaction.reply('UwU');
         return true;
     }
 

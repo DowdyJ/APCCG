@@ -13,4 +13,4 @@ This is a very simple Discord bot that interfaces with SaltyBet.
 | /salty status                 | Fetch current match details, including current bet amounts and team names. |
 
 ## License
-This project is licensed under the MIT license.
+This project is licensed under the GPL-3.0 license.

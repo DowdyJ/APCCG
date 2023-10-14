@@ -1,13 +1,11 @@
 import { SlashCommandBuilder } from "discord.js";
 import discord from 'discord.js'
-import { ICommand } from "./icommand"
+import Command from "./command.js"
 
 import { REST, Routes, SlashCommandStringOption } from 'discord.js';
 import { Client, GatewayIntentBits } from 'discord.js';
 
-export { CommandHello as Command }
-
-class CommandHello implements ICommand {
+export default class CommandHello extends Command {
     public Disabled(): boolean {
         return false;
     }

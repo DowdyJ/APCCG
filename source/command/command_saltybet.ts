@@ -1,13 +1,11 @@
 import { Message, SlashCommandBuilder, InteractionType, TextChannel } from "discord.js";
-import { ICommand } from "./icommand.js";
+import Command from "./command.js";
 import { Logger, MessageType } from "../logger.js"
 import discord from "discord.js"
 
 import { Curl, HeaderInfo } from "node-libcurl";
 import querystring from 'querystring';
 import { EmbedBuilder } from "@discordjs/builders";
-
-export { SaltyBetCommands as Command };
 
 // Commands to mimic behavior of these curl commands
 //  Get match data:               curl https://www.saltybet.com/state.json?t=1679211472638
@@ -18,7 +16,7 @@ export { SaltyBetCommands as Command };
 //  Get bet data (leaderboard):   curl https://www.saltybet.com/zdata.json?t=1679295371937"
 
 
-class SaltyBetCommands implements ICommand
+export default class SaltyBetCommands extends Command
 {
   static serverChannelsToMessage : string[] = [];
   static lastRecordedStatus : string = "";

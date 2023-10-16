@@ -1,6 +1,6 @@
 import discord from 'discord.js'
 
-export default class Command {
+export default class ApccgSlashCommand {
 
     CommandData() : discord.SlashCommandBuilder {
         throw new Error("Unimplemented method CommandData");

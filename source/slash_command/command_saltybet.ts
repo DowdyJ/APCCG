@@ -1,5 +1,5 @@
 import { Message, SlashCommandBuilder, InteractionType, TextChannel } from "discord.js";
-import Command from "./command.js";
+import ApccgSlashCommand from "./apccg_slash_command.js";
 import { Logger, MessageType } from "../logger.js"
 import discord from "discord.js"
 
@@ -16,7 +16,7 @@ import { EmbedBuilder } from "@discordjs/builders";
 //  Get bet data (leaderboard):   curl https://www.saltybet.com/zdata.json?t=1679295371937"
 
 
-export default class SaltyBetCommands extends Command
+export default class SaltyBetCommands extends ApccgSlashCommand
 {
   static serverChannelsToMessage : string[] = [];
   static lastRecordedStatus : string = "";

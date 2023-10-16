@@ -1,7 +1,7 @@
 import discord from 'discord.js'
 import { REST, Routes, SlashCommandBuilder, GatewayIntentBits } from 'discord.js';
 
-import Command from './command/command.js'
+import ApccgSlashCommand from './slash_command/apccg_slash_command.js'
 
 import fs from 'node:fs';
 import path from 'node:path';
@@ -9,6 +9,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'url';
 import settings from '../settings.json' assert { type: "json"}
 import hmt from '../hmt.json' assert { type: "json"}
+import ApccgMessageCommand from './message_command/apccg_message_command.js';
 
 
 const __filename = fileURLToPath(import.meta.url);
@@ -21,6 +22,9 @@ export class CustomClient extends discord.Client {
         this._applicationID = applicationID;
         this._rest = new REST({ version: '10' }).setToken(this._token);
         this._InitializeCommands();
+        this.on("messageCreate", (message: discord.Message) => {
+            this.HandleMessages(message);
+        });
         return;
     }
 
@@ -31,7 +35,7 @@ export class CustomClient extends discord.Client {
             let TOKEN : string = hmt.APCCG_BOT_TOKEN;
             let ApplicationID : string = hmt.APPLICATION_ID;
 
-            CustomClient._client = new CustomClient({ intents: [GatewayIntentBits.Guilds, GatewayIntentBits.MessageContent] }, TOKEN, ApplicationID);
+            CustomClient._client = new CustomClient({ intents: [GatewayIntentBits.Guilds, GatewayIntentBits.MessageContent, GatewayIntentBits.GuildMessages] }, TOKEN, ApplicationID);
         }
 
         return CustomClient._client;
@@ -45,14 +49,15 @@ export class CustomClient extends discord.Client {
     private _applicationID : string;
     private _rest : REST;
 
-    public commands : Command[] = [];
+    public slashCommands : ApccgSlashCommand[] = [];
+    public messageCommands : ApccgMessageCommand[] = [];
 
     public async ProcessCommandsAsync(interaction : discord.Interaction) : Promise<boolean> {
         let returnValue : boolean = false;
         if (!interaction.isChatInputCommand()) 
             return returnValue;
 
-        for (const c of this.commands) {
+        for (const c of this.slashCommands) {
             if (c.CommandData().name === interaction.commandName) {
                 returnValue = await c.Execute([interaction]);
                 break;
@@ -62,40 +67,85 @@ export class CustomClient extends discord.Client {
         return returnValue
     }
 
+    private async HandleMessages(message: discord.Message) {
+        if (message.author.bot)
+            return;
+
+        for (const messageCommand of this.messageCommands) {
+            if (messageCommand.isMatch(message)) {
+                messageCommand.execute(message);
+            }
+        }
+    }
+
+
     private async _GetCommands() : Promise<void> {
-        console.log("Started getting commands...");
+        await this.LoadSlashCommands();
+        await this.LoadMessageCommands();
+    }
+
+    private async LoadMessageCommands() : Promise<void> {
+        console.log("Started getting message commands...");
         
-            const commandsBasePath = path.join(__dirname, 'command');
-            const commandFiles = fs.readdirSync(commandsBasePath).filter(file => file.endsWith('.js'));
+        const commandsBasePath = path.join(__dirname, 'message_command');
+        const commandFiles = fs.readdirSync(commandsBasePath).filter(file => file.endsWith('.js'));
+
+        for (const file of commandFiles) {
+            try {
+                if (file === "apccg_message_command.js")
+                    continue;
+
+                const filePath = path.join(commandsBasePath, file);
+                console.log("Loading the file " + file);
+                const commandModule = new (await import(filePath)).default
     
-            for (const file of commandFiles) {
-                try {
-                    if (file === "command.js")
-                        continue;
-                    
-                    const filePath = path.join(commandsBasePath, file);
-                    console.log("Loading the file " + file);
-                    const commandModule = new (await import(filePath)).default
-        
-                    if (commandModule instanceof Command) {
-                        this.commands.push(commandModule);
-                    } else {
-                        console.log(`[WARNING] The file at ${filePath} does not extend Command`);
-                    }
-                }
-                catch (err) {
-                    console.log("Error loading commands: " + err);
+                if (commandModule instanceof ApccgMessageCommand) {
+                    this.messageCommands.push(commandModule);
+                } else {
+                    console.log(`[WARNING] The file at ${filePath} does not extend ApccgMessageCommand`);
                 }
             }
-    
-            console.log("Finished getting commands.");
+            catch (err) {
+                console.log("Error loading commands: " + err);
+            }
+        }
+
+        console.log("Finished getting message commands.");
+    }
+
+    private async LoadSlashCommands() : Promise<void> {
+        console.log("Started getting slash commands...");
         
+        const commandsBasePath = path.join(__dirname, 'slash_command');
+        const commandFiles = fs.readdirSync(commandsBasePath).filter(file => file.endsWith('.js'));
+
+        for (const file of commandFiles) {
+            try {
+                if (file === "apccg_slash_command.js")
+                    continue;
+
+                const filePath = path.join(commandsBasePath, file);
+                console.log("Loading the file " + file);
+                const commandModule = new (await import(filePath)).default
+    
+                if (commandModule instanceof ApccgSlashCommand) {
+                    this.slashCommands.push(commandModule);
+                } else {
+                    console.log(`[WARNING] The file at ${filePath} does not extend ApccgSlashCommand`);
+                }
+            }
+            catch (err) {
+                console.log("Error loading commands: " + err);
+            }
+        }
+
+        console.log("Finished getting slash commands.");
     }
 
     private _GetSlashCommandBuilders() : SlashCommandBuilder[] {
         let commands : SlashCommandBuilder[] = [];
 
-        for (const command of this.commands) {
+        for (const command of this.slashCommands) {
             if (!command.Disabled()) {
                 console.log(`Registering command named: ${command.CommandData().name}`);
                 commands.push(command.CommandData());

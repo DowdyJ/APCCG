@@ -1,11 +1,11 @@
 import { SlashCommandBuilder } from "discord.js";
 import discord from 'discord.js'
-import Command from "./command.js"
+import ApccgSlashCommand from "./apccg_slash_command.js"
 
 import { REST, Routes, SlashCommandStringOption } from 'discord.js';
 import { Client, GatewayIntentBits } from 'discord.js';
 
-export default class CommandHello extends Command {
+export default class CommandHello extends ApccgSlashCommand {
     public Disabled(): boolean {
         return false;
     }

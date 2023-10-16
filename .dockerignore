@@ -1,0 +1,4 @@
+hmt.json
+node_modules/**
+salty_cookies/**
+build_image.sh

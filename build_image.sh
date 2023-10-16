@@ -1,0 +1,1 @@
+DOCKER_BUILDKIT=1 docker build -t apccg --secret id=hmt,src=$(pwd)/hmt.json .

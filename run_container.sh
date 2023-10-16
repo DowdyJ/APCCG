@@ -1,0 +1,1 @@
+docker run --restart=unless-stopped -it -v ./hmt.json:/app/hmt.json apccg

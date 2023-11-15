@@ -1,6 +1,6 @@
 # APCCG
 
-This is a very simple Discord bot that interfaces with SaltyBet.
+This is a simple Discord bot that interfaces with SaltyBet among other utilities.
 
 ## Currently implemented commands
 
@@ -11,6 +11,10 @@ This is a very simple Discord bot that interfaces with SaltyBet.
 | /salty balance                | Retrieve your current balance                                              |
 | /salty sign-out               | Sign-out from SaltyBet (Removes sign-in cookie)                            |
 | /salty status                 | Fetch current match details, including current bet amounts and team names. |
+
+## Other Utilities
+It will automatically replace twitter.com and x.com links with vxtwitter.com, allowing for embeds in Discord.
+It will convert H265 mp4 videos to H264, also allowing for embeds.
 
 ## License
 This project is licensed under the GPL-3.0 license.

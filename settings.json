@@ -1,4 +1,5 @@
 {
+    "USE_ALT_BOT": true,
     "DEBUG" : true,
     "REGISTER_COMANDS" : false
 }

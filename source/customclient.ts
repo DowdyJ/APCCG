@@ -32,8 +32,17 @@ export class CustomClient extends discord.Client {
 
     public static Instance() : CustomClient {
         if (CustomClient._client === null) {
-            let TOKEN : string = hmt.APCCG_BOT_TOKEN;
-            let ApplicationID : string = hmt.APPLICATION_ID;
+            let TOKEN : string;
+            let ApplicationID : string;
+
+            if (settings.USE_ALT_BOT) {
+                ApplicationID = hmt.ALT_BOT_APPLICATION_ID
+                TOKEN = hmt.ALT_BOT_TOKEN;
+            }
+            else {
+                ApplicationID = hmt.APPLICATION_ID
+                TOKEN = hmt.BOT_TOKEN;
+            }
 
             CustomClient._client = new CustomClient({ intents: [GatewayIntentBits.Guilds, GatewayIntentBits.MessageContent, GatewayIntentBits.GuildMessages] }, TOKEN, ApplicationID);
         }

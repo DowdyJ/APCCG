@@ -1,4 +1,6 @@
 hmt.json
+data/**
 node_modules/**
 salty_cookies/**
 build_image.sh
+*.db

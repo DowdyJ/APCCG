@@ -40,7 +40,8 @@ export default class CommandFixTwitterLinks extends ApccgMessageCommand {
                     .videoCodec('libx264')
                     .on('end', function() {
                         
-                        message.reply({
+                        message.channel.send({
+                            content: `From ${message.author.username}:`,
                             files: [`${output}`],
                             allowedMentions: {
                                 repliedUser: false
@@ -48,7 +49,8 @@ export default class CommandFixTwitterLinks extends ApccgMessageCommand {
                         }).then(() => {
                             statusMessage.then(sm => {
                                 sm.delete();
-                            })
+                            });
+                            message.delete();
 
                             fs.rm(output, () => {});
                         })

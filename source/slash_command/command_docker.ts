@@ -36,8 +36,12 @@ export default class CommandHello extends ApccgSlashCommand {
             subcommand
                 .setName("stop")
                 .setDescription("Stop a running container")
-                .addStringOption((input) => input.setRequired(true).setName('name').setDescription("short name for the command"))
-          )
+                .addStringOption((input) => input.setRequired(true).setName('name').setDescription("short name for the command")))
+        .addSubcommand(subcommand =>
+          subcommand
+              .setName("info")
+              .setDescription("Show the command aliased by short name")
+              .addStringOption((input) => input.setRequired(true).setName('name').setDescription("short name for the command")))
         .addSubcommand(subcommand =>
             subcommand
                 .setName("op")
@@ -73,6 +77,8 @@ export default class CommandHello extends ApccgSlashCommand {
     switch (subcommandName) {
       case 'add':
         return await this.addCommand(interaction);
+      case 'info':
+        return await this.getCommandInfo(interaction);
       case 'remove':
         return await this.removeCommand(interaction);
       case 'run':
@@ -92,6 +98,37 @@ export default class CommandHello extends ApccgSlashCommand {
   }
 
   private rejectionString : string = "𝗧𝗵𝗲 𝗗𝗮𝗼 𝘁𝗵𝗮𝘁 𝗰𝗮𝗻 𝗯𝗲 𝘀𝗽𝗼𝗸𝗲𝗻 𝗶𝘀 𝗻𝗼𝘁 𝘁𝗵𝗲 𝗲𝘁𝗲𝗿𝗻𝗮𝗹 𝗗𝗮𝗼"
+
+
+  private async getCommandInfo(interaction: CommandInteraction): Promise<boolean> {
+    let commandName = interaction.options.get("name")?.value as string;
+    
+    await interaction.reply(`Looking up info for ${commandName}...`)
+
+    let database = Database.instance();
+    let res = await database.getCommandContentsByName(commandName);
+
+    if (res == null) {
+        return new Promise<boolean>((resolve, reject) => resolve(false));
+    }
+
+    let commandFunction = (res as any).command_contents;
+
+    if (commandFunction === "")
+        commandFunction = "-";
+
+    interaction.channel!.send({embeds: [new EmbedBuilder()
+        .setTitle(`Command Info - ${commandName}`)
+        .setColor(0x6699CC)
+        .addFields(
+            { name: 'Command Name', value: `${commandName}`, inline: false },
+            { name: 'Command Function', value: `${commandFunction}`, inline: false }
+        )
+        .setTimestamp()]})
+
+    return new Promise<boolean>((resolve, reject) => resolve(true));
+  }
+
 
   private async addUser(interaction: CommandInteraction): Promise<boolean> {
     if (!(await this.canAlterUsers(interaction))) {
@@ -157,9 +194,12 @@ export default class CommandHello extends ApccgSlashCommand {
     }
 
     let commandString = interaction.options.get("command")?.value as string;
-    
+    let notes = interaction.options.get("notes")?.value as string
+    if (notes == null)
+      notes = "-";
+
     let database = Database.instance();
-    let res = await database.addDockerCommand(commandName, commandString);
+    let res = await database.addDockerCommand(commandName, commandString, notes);
 
     if (res)
         interaction.reply(`Added command \"${commandName}\" as \"${commandString}\"`);
@@ -285,7 +325,8 @@ export default class CommandHello extends ApccgSlashCommand {
         .setColor(0x6699CC)
         .addFields(
             { name: 'Command Name', value: `${commandNames}`, inline: true },
-            { name: 'Command Function', value: `${commandFunctions}`, inline: true },
+            // It looks pretty busy with large commands, so temporarily disabled
+            //{ name: 'Command Function', value: `${commandFunctions}`, inline: true },
             { name: 'Notes', value: `${notes}`, inline: true },
             { name: 'Active Containers', value: `${activeContainerText}`, inline: false },
         )

@@ -21,6 +21,19 @@ export default class SaltyBetCommands extends ApccgSlashCommand
   static serverChannelsToMessage : string[] = [];
   static lastRecordedStatus : string = "";
 
+  public override GetTitle(): string {
+    return "Salty Bet Commands";
+  }
+
+  public override GetDescription(): string {
+    return `**/salty sign-in** _[email] [pass]_ -> Log-in to SaltyBet using your email and password                           
+**/salty bet** _[team] [amount]_ -> Place a bet for a team or player.                                          
+**/salty balance** -> Retrieve your current balance                                              
+**/salty sign-out** -> Sign-out from SaltyBet (Removes sign-in cookie)                            
+**/salty status** -> Fetch current match details, including current bet amounts and team names.`;
+  }
+
+
   CommandData(): any {
       return new SlashCommandBuilder()
       .setName("salty")

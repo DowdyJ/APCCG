@@ -6,7 +6,7 @@ import Database from "../database.js";
 import child_process from 'child_process'
 
 
-export default class CommandHello extends ApccgSlashCommand {
+export default class CommandDocker extends ApccgSlashCommand {
     public Disabled(): boolean {
         return false;
     }
@@ -64,6 +64,20 @@ export default class CommandHello extends ApccgSlashCommand {
         );
     }
 
+    public GetTitle() : string {
+      return "Docker Commands";
+    }
+
+    public GetDescription() : string {
+      return `**/docker add** _[command name] [docker command] [(Optional) notes]_ -> Add a "docker run" command                                                 
+      **/docker remove** _[command name]_ -> Remove an existing command                                                 
+      **/docker run** _[command name]_ -> Run an available command                                                   
+      **/docker stop** _[command name]_ -> Stop a running container                                                   
+      **/docker status** -> See running containers and available commands                              
+      **/docker op** _[user]_ -> Add permissions to a user                                                  
+      **/docker de-op** _[user]_ -> Remove permissions from a user                                             
+      **/docker info** _[command name]_ -> Display details about backing docker command`;
+    }
     
   async Execute(args: any[]): Promise<boolean> {
     const interaction = args[0] as discord.CommandInteraction;

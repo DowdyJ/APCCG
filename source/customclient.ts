@@ -10,6 +10,7 @@ import { fileURLToPath } from 'url';
 import settings from '../settings.json' assert { type: "json"}
 import hmt from '../hmt.json' assert { type: "json"}
 import ApccgMessageCommand from './message_command/apccg_message_command.js';
+import CommandHelp from './slash_command/command_help.js';
 
 
 const __filename = fileURLToPath(import.meta.url);
@@ -91,6 +92,12 @@ export class CustomClient extends discord.Client {
     private async _GetCommands() : Promise<void> {
         await this.LoadSlashCommands();
         await this.LoadMessageCommands();
+        this.InitializeHelpCommand();
+    }
+
+    private InitializeHelpCommand() {
+        let helpCommand = this.slashCommands.filter((command) => command instanceof CommandHelp)[0] as CommandHelp;
+        helpCommand.SetRegisteredCommands(this.slashCommands, this.messageCommands);
     }
 
     private async LoadMessageCommands() : Promise<void> {
@@ -160,6 +167,7 @@ export class CustomClient extends discord.Client {
                 commands.push(command.CommandData());
             }
         }
+
 
         return commands;
     }

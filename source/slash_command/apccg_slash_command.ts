@@ -13,4 +13,12 @@ export default class ApccgSlashCommand {
     Disabled() : boolean {
         throw new Error("Unimplemented method Disabled");
     };
+
+    GetTitle() : string {
+        throw new Error("Unimplemented method GetTitle");
+    }
+
+    GetDescription() : string {
+        throw new Error("Unimplemented method GetDescription");
+    }
 }

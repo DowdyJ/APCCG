@@ -11,4 +11,12 @@ export default class CommandFixTwitterLinks extends ApccgMessageCommand {
         await message.channel.send(`From ${message.author.username}:\n\n${newLink}`);
         await message.delete();
     }
+
+    public override GetTitle() : string {
+        return "Twitter Link Fix";
+    }
+
+    public override GetDescription() : string {
+        return "Triggers on twitter.com or x.com links. Converts to vxtwitter.com.";
+    }
 }

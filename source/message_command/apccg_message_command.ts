@@ -11,4 +11,12 @@ export default class ApccgMessageCommand {
     public async execute(message: discord.Message): Promise<void> {
         throw new Error("Unimplemented method \"execute()\"");
     }
+
+    public GetTitle() : string {
+        throw new Error("Unimplemented method GetTitle");
+    }
+
+    public GetDescription() : string {
+        throw new Error("Unimplemented method GetDescription");
+    }
 }

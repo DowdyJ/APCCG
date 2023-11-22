@@ -9,4 +9,12 @@ export default class CommandFixTwitterLinks extends ApccgMessageCommand {
     public async execute(message: discord.Message): Promise<void> {
         message.reply("🤴🛐\n👽🤝\n🔮💭\n🇫🇷🤖✋\n🏰💰🌍\n👑🩸🌳\n🚀🌌🏙️ (🌆= Bogdangrad)\n🧬🔬🌍\n👶🎨✨\n🧠⚡🏔️🛸\n📜👼🌍🔧\n🤖🔍🌍\n🤖🪱👤\n👼🗣️📞🙏⛪\n🤝🔍❄️🛸\n🇫🇷🗣️⚡\n🏦💰🔐 (🏦❌💰, 🏦✅🤴)\n👥🕰️🌌\n🌌🌀🤝❓🕊️");
     }
+
+    public override GetTitle() : string {
+        return "Bog Pill";
+    }
+
+    public override GetDescription() : string {
+        return "Triggers on 'qrd'. Gives the quick rundown for a modern audience.";
+    }
 }

@@ -21,4 +21,14 @@ export default class CommandHello extends ApccgSlashCommand {
         return true;
     }
 
+    public override GetTitle(): string {
+        return "Utility";
+    }
+
+    public override GetDescription(): string {
+        return `
+        **/hello** -> OwO
+        `
+    }
+
 }

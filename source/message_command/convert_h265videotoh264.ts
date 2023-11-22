@@ -5,6 +5,14 @@ import fs from 'fs';
 
 export default class CommandFixTwitterLinks extends ApccgMessageCommand {
     
+    public override GetTitle() : string {
+        return "H265 Video Embed Fix";
+    }
+
+    public override GetDescription() : string {
+        return "Triggers on messages with one attachment that is an h265 format video. Converts to h264 and replaces original.";
+    }
+
     public isMatch(message: discord.Message): boolean {
         if (message.attachments.size == 1) {
             let attach = message.attachments.first() as Attachment

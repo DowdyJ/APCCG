@@ -45,7 +45,7 @@ export class CustomClient extends discord.Client {
                 TOKEN = hmt.BOT_TOKEN;
             }
 
-            CustomClient._client = new CustomClient({ intents: [GatewayIntentBits.Guilds, GatewayIntentBits.MessageContent, GatewayIntentBits.GuildMessages] }, TOKEN, ApplicationID);
+            CustomClient._client = new CustomClient({ intents: [GatewayIntentBits.Guilds, GatewayIntentBits.MessageContent, GatewayIntentBits.GuildMessages, GatewayIntentBits.GuildVoiceStates] }, TOKEN, ApplicationID);
         }
 
         return CustomClient._client;

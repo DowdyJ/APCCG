@@ -20,6 +20,8 @@ For the bot to run you will need a file called "hmt.json" in the root folder. It
 
 | Command                                                        | Effect                                                                     |
 |----------------------------------------------------------------|----------------------------------------------------------------------------|
+| /help                                                          | Show a help message                                                        |
+| /hello                                                         | Sanity check to check bot responsiveness                                   |
 | /salty sign-in [email] [pass]                                  | Log-in to SaltyBet using your email and password                           |
 | /salty bet [team] [amount]                                     | Place a bet for a team or player.                                          |
 | /salty balance                                                 | Retrieve your current balance                                              |
@@ -32,6 +34,8 @@ For the bot to run you will need a file called "hmt.json" in the root folder. It
 | /docker status                                                 | See running containers and available commands                              |
 | /docker op [user]                                              | Add permissions to a user                                                  |
 | /docker de-op [user]                                           | Remove permissions from a user                                             |
+| /listenmoe play [music stream option]                          | Join a channel and play the stream specified (jpop/kpop)                   |
+| /listenmoe stop                                                | Stop playing music leave the channel                                       |
 
 ## Other Utilities
 It will automatically replace twitter.com and x.com links with vxtwitter.com, allowing for embeds in Discord.

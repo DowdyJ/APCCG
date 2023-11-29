@@ -21,8 +21,7 @@ class CustomLogger {
                 console.log(messageString);
                 break;
             case MessageType.LOG:
-                messageString = "e[32m[WARN]e[0m  " + messageString;
-                console.log(messageString);
+                console.log(message);
                 break;
             default:
                 console.log(message);

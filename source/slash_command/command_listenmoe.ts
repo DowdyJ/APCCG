@@ -69,6 +69,7 @@ export default class CommandListenMoe extends ApccgSlashCommand {
 
     audioPlayer: AudioPlayer | null = null;
     connection: VoiceConnection | null = null;
+    lastStream: string | null = null;
 
     private async JoinChannelAndPlay(interaction: CommandInteraction): Promise<boolean> {
         let streamNumber = (interaction.options.get("audio_stream")?.value as number) ?? 1;
@@ -84,6 +85,8 @@ export default class CommandListenMoe extends ApccgSlashCommand {
             // Default to J-Pop stream
             streamLink = "https://listen.moe/opus";
         }
+        this.lastStream = streamLink;
+        const resource = createAudioResource(streamLink);
 
         Logger.log(`Playing streamlink: ${streamLink}`, MessageType.DEBUG);
 
@@ -102,19 +105,21 @@ export default class CommandListenMoe extends ApccgSlashCommand {
                 },
             });
             this.audioPlayer.on("error", (error) => {
-                console.error(`Audio Error: ${error.message}`);
+                Logger.log(`Audio Error: ${error.message}`, MessageType.ERROR);
             });
 
             this.audioPlayer.on("stateChange", (oldState, newState) => {
-                console.log(`Audio player transitioned from ${oldState.status} to ${newState.status}`);
+                Logger.log(`Audio player transitioned from ${oldState.status} to ${newState.status}`, MessageType.DEBUG);
+                if (newState.status === "idle") {
+                    Logger.log("Restarting audio stream.");
+                    this.attemptToRestartAudio();
+                }
             });
 
             this.audioPlayer.on("debug", (message) => {
-                console.log(`Debug message from audio player:`);
-                console.log(message);
+                Logger.log(`Debug message from audio player:`, MessageType.DEBUG);
+                Logger.log(message, MessageType.LOG);
             });
-
-            const resource = createAudioResource(streamLink);
 
             this.connection.subscribe(this.audioPlayer);
             this.audioPlayer.play(resource);
@@ -128,6 +133,14 @@ export default class CommandListenMoe extends ApccgSlashCommand {
         }
 
         return false;
+    }
+
+    private attemptToRestartAudio(): void {
+        if (this.lastStream == null)
+            return;
+        
+        const resource = createAudioResource(this.lastStream);
+        this.audioPlayer?.play(resource);
     }
 
     private async leaveChannelAndStop(interaction: CommandInteraction): Promise<boolean> {

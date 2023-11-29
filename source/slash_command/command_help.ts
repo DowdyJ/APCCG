@@ -1,64 +1,68 @@
 import { CommandInteraction, EmbedBuilder, SlashCommandBuilder } from "discord.js";
-import ApccgSlashCommand from "./apccg_slash_command.js"
+import ApccgSlashCommand from "./apccg_slash_command.js";
 import ApccgMessageCommand from "../message_command/apccg_message_command.js";
 import { Logger } from "../logger.js";
 
-
 export default class CommandHelp extends ApccgSlashCommand {
-
-    private registeredSlashCommands : ApccgSlashCommand[] = [];
+    private registeredSlashCommands: ApccgSlashCommand[] = [];
     private registeredMessageCommands: ApccgMessageCommand[] = [];
 
-    public Disabled(): boolean {
+    public override disabled(): boolean {
         return false;
     }
-    
-    public CommandData(): SlashCommandBuilder {
+
+    public override commandData(): SlashCommandBuilder {
         return new SlashCommandBuilder().setName("help").setDescription("see a list of commands");
     }
 
-    public async Execute(args: any[]): Promise<boolean> {
-        let interaction = (args[0] as CommandInteraction);
-        
+    public override async execute(args: any[]): Promise<boolean> {
+        let interaction = args[0] as CommandInteraction;
+
         let helpEmbed = new EmbedBuilder();
-        helpEmbed
-            .setColor(0xFFFFFF)
-            .setDescription("Available commands")
-            .setTitle("APCCG Help");
-        
+        helpEmbed.setColor(0xffffff).setDescription("Available commands").setTitle("APCCG Help");
+
         for (const slashCommand of this.registeredSlashCommands) {
             try {
-                helpEmbed.addFields({name: slashCommand.GetTitle(), value: slashCommand.GetDescription(), inline: false})
+                helpEmbed.addFields({
+                    name: slashCommand.getTitle(),
+                    value: slashCommand.getDescription(),
+                    inline: false,
+                });
             } catch (error) {
                 Logger.log((error as Error).message);
             }
         }
 
-        
         for (const messageCommand of this.registeredMessageCommands) {
             try {
-                helpEmbed.addFields({name: messageCommand.GetTitle(), value: messageCommand.GetDescription(), inline: false})
+                helpEmbed.addFields({
+                    name: messageCommand.getTitle(),
+                    value: messageCommand.getDescription(),
+                    inline: false,
+                });
             } catch (error) {
                 Logger.log((error as Error).message);
             }
         }
 
-        interaction.reply({embeds: [helpEmbed]});
-        
+        interaction.reply({ embeds: [helpEmbed] });
+
         return true;
     }
 
-    public override GetTitle(): string {
+    public override getTitle(): string {
         return "Help";
     }
 
-    public override GetDescription(): string {
-        return `**/help** -> See this message`
+    public override getDescription(): string {
+        return `**/help** -> See this message`;
     }
 
-    public SetRegisteredCommands(registeredSlashCommands : ApccgSlashCommand[], registeredMessageCommands: ApccgMessageCommand[]) {
+    public setRegisteredCommands(
+        registeredSlashCommands: ApccgSlashCommand[],
+        registeredMessageCommands: ApccgMessageCommand[]
+    ) {
         this.registeredMessageCommands = registeredMessageCommands;
         this.registeredSlashCommands = registeredSlashCommands;
     }
-
 }

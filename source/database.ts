@@ -52,6 +52,98 @@ export default class Database {
             can_run_commands NUMERIC DEFAULT 0,
             can_stop_commands NUMERIC DEFAULT 0
         )`);
+
+        this.sqliteDatabase.run(`CREATE TABLE IF NOT EXISTS RadioStreams (
+            radio_name TEXT PRIMARY KEY NOT NULL,
+            radio_stream_link TEXT NOT NULL
+        )`);
+    }
+
+    public addRadioStation(radioName: string, radioLink: string): Promise<boolean> {
+        return new Promise<boolean>((resolve, reject) => {
+            this.sqliteDatabase.run(
+                `
+            INSERT INTO RadioStreams (radio_name, radio_stream_link)
+            VALUES (?,?)`,
+                [radioName, radioLink],
+                (err: Error | null) => {
+                    if (err) {
+                        Logger.log(`SQL Error: ${err.message}`, MessageType.WARNING);
+                        resolve(false);
+                        return;
+                    }
+                    resolve(true);
+                    return;
+                }
+            );
+        });
+    }
+
+    public getRadioStationUrlByName(radioName: string): Promise<string | null> {
+        return new Promise<string | null>((resolve, reject) => {
+            this.sqliteDatabase.all<string>(
+                `
+                SELECT radio_name, radio_stream_link 
+                FROM RadioStreams
+                WHERE radio_name = ?`,
+                [radioName],
+                (err: Error | null, rows: unknown[]) => {
+                    if (err) {
+                        Logger.log(`SQL Error: ${err.message}`, MessageType.WARNING);
+                        resolve(null);
+                        return;
+                    }
+                    if (rows == null || rows.length === 0) {
+                        resolve(null);
+                        return;
+                    }
+
+                    let result = rows[0];
+                    resolve((result as any).radio_stream_link as string);
+                    return;
+                }
+            );
+        });
+    }
+
+    public removeRadioStation(radioName: string): Promise<boolean> {
+        return new Promise<boolean>((resolve, reject) => {
+            this.sqliteDatabase.run(
+                `
+            DELETE FROM RadioStreams
+            WHERE radio_name = ?`,
+                [radioName],
+                (err: Error | null) => {
+                    if (err) {
+                        Logger.log(`SQL Error: ${err.message}`, MessageType.WARNING);
+                        resolve(false);
+                        return;
+                    }
+                    resolve(true);
+                    return;
+                }
+            );
+        });
+    }
+
+    public getAllRadioStations(): Promise<object[] | null> {
+        return new Promise<object[] | null>((resolve, reject) => {
+            this.sqliteDatabase.all<string>(
+                `
+                SELECT radio_name, radio_stream_link 
+                FROM RadioStreams`,
+                (err: Error | null, rows: object[]) => {
+                    if (err) {
+                        Logger.log(`SQL Error: ${err.message}`, MessageType.WARNING);
+                        resolve(null);
+                        return;
+                    }
+
+                    resolve(rows);
+                    return;
+                }
+            );
+        });
     }
 
     public addDockerUser(

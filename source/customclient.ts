@@ -11,6 +11,8 @@ import settings from "../settings.json" assert { type: "json" };
 import hmt from "../hmt.json" assert { type: "json" };
 import ApccgMessageCommand from "./message_command/apccg_message_command.js";
 import CommandHelp from "./slash_command/command_help.js";
+import ApccgIntervalCommand from "./interval_command/apccg_interval_command.js";
+import { Logger } from "./logger.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -21,10 +23,24 @@ export class CustomClient extends discord.Client {
         this._token = token;
         this._applicationID = applicationID;
         this._rest = new REST({ version: "10" }).setToken(this._token);
-        this.initializeCommands();
+        
+        this.initializeCommands().then(() => {
+            for (const intervalCommand of this.intervalCommands) {
+                setTimeout(() => {
+                    Logger.log(`Registering regular interval command ${intervalCommand.commandData().name}`);
+                    setInterval(() => {
+                        Logger.log(`Executing regular interval command`);
+                        intervalCommand.executeInterval()
+                    }, 
+                    intervalCommand.getInterval() * 1000);
+                }, 10 * 1000);
+            }
+        })
+        
         this.on("messageCreate", (message: discord.Message) => {
             this.handleMessages(message);
         });
+    
         return;
     }
 
@@ -70,12 +86,20 @@ export class CustomClient extends discord.Client {
 
     public slashCommands: ApccgSlashCommand[] = [];
     public messageCommands: ApccgMessageCommand[] = [];
+    public intervalCommands: ApccgIntervalCommand[] = [];
 
     public async processCommandsAsync(interaction: discord.Interaction): Promise<boolean> {
         let returnValue: boolean = false;
         if (!interaction.isChatInputCommand()) return returnValue;
 
         for (const c of this.slashCommands) {
+            if (c.commandData().name === interaction.commandName) {
+                returnValue = await c.execute([interaction]);
+                break;
+            }
+        }
+
+        for (const c of this.intervalCommands) {
             if (c.commandData().name === interaction.commandName) {
                 returnValue = await c.execute([interaction]);
                 break;
@@ -98,12 +122,41 @@ export class CustomClient extends discord.Client {
     private async getCommands(): Promise<void> {
         await this.loadSlashCommands();
         await this.loadMessageCommands();
+        await this.loadIntervalCommands();
         this.initializeHelpCommand();
     }
 
     private initializeHelpCommand() {
         let helpCommand = this.slashCommands.filter((command) => command instanceof CommandHelp)[0] as CommandHelp;
-        helpCommand.setRegisteredCommands(this.slashCommands, this.messageCommands);
+        helpCommand.setRegisteredCommands(this.slashCommands, this.messageCommands, this.intervalCommands);
+    }
+
+    private async loadIntervalCommands(): Promise<void> {
+        console.log("Started getting interval commands...");
+
+        const commandsBasePath = path.join(__dirname, "interval_command");
+        const commandFiles = fs.readdirSync(commandsBasePath).filter((file) => file.endsWith(".js"));
+
+        for (const file of commandFiles) {
+            try {
+                if (file === "apccg_interval_command.js") continue;
+
+                const filePath = path.join(commandsBasePath, file);
+                console.log("Loading the file " + file);
+                const commandModule = new (await import(filePath)).default();
+
+                if (commandModule instanceof ApccgIntervalCommand) {
+                    this.intervalCommands.push(commandModule);
+                } else {
+                    console.log(`[WARNING] The file at ${filePath} does not extend ApccgIntervalCommand`);
+                }
+            } catch (err) {
+                console.log("Error loading commands: " + err);
+            }
+        }
+
+        console.log("Finished getting interval commands.");
+
     }
 
     private async loadMessageCommands(): Promise<void> {
@@ -170,23 +223,28 @@ export class CustomClient extends discord.Client {
             }
         }
 
+        for (const command of this.intervalCommands) {
+            if (!command.disabled()) {
+                console.log(`Registering command named: ${command.commandData().name}`);
+                commands.push(command.commandData());
+            }
+        }
+
         return commands;
     }
 
-    private initializeCommands(): void {
-        (async () => {
-            await this.getCommands();
-            try {
-                if (!settings.REGISTER_COMANDS) return;
+    private async initializeCommands(): Promise<void> {
+        await this.getCommands();
+        try {
+            if (!settings.REGISTER_COMANDS) return;
 
-                console.log("Updating slash commands...");
+            console.log("Updating slash commands...");
 
-                await this._rest.put(Routes.applicationCommands(this._applicationID), {
-                    body: this.getSlashCommandBuilders(),
-                });
-            } catch (error) {
-                console.error(error);
-            }
-        })();
+            await this._rest.put(Routes.applicationCommands(this._applicationID), {
+                body: this.getSlashCommandBuilders(),
+            });
+        } catch (error) {
+            console.error(error);
+        }
     }
 }

@@ -57,6 +57,73 @@ export default class Database {
             radio_name TEXT PRIMARY KEY NOT NULL,
             radio_stream_link TEXT NOT NULL
         )`);
+
+        this.sqliteDatabase.run(`CREATE TABLE IF NOT EXISTS KSpamRemovalChannels (
+            channel_id TEXT PRIMARY KEY NOT NULL
+        )`);
+    }
+
+    public addChannelToKPurge(channelId: string): Promise<boolean> {
+        Logger.log(`Adding channel to purge ${channelId}`);
+        return new Promise<boolean>((resolve, reject) => {
+            this.sqliteDatabase.run(
+                `
+            INSERT INTO KSpamRemovalChannels (channel_id)
+            VALUES (?)`,
+                [channelId],
+                (err: Error | null) => {
+                    if (err) {
+                        Logger.log(`SQL Error: ${err.message}`, MessageType.WARNING);
+                        resolve(false);
+                        return;
+                    }
+                    resolve(true);
+                    return;
+                }
+            );
+        });
+    }
+
+    public removeChannelToKPurge(channelId: string): Promise<boolean> {
+        Logger.log(`Removing channel to purge ${channelId}`);
+        return new Promise<boolean>((resolve, reject) => {
+            this.sqliteDatabase.run(
+                `
+            DELETE FROM KSpamRemovalChannels
+            WHERE channel_id = ?`,
+                [channelId],
+                (err: Error | null) => {
+                    if (err) {
+                        Logger.log(`SQL Error: ${err.message}`, MessageType.WARNING);
+                        resolve(false);
+                        return;
+                    }
+                    resolve(true);
+                    return;
+                }
+            );
+        });
+    }
+
+    public getAllChannelsToKPurge(): Promise<object[] | null> {
+        Logger.log(`Retrieving all channels to purge`);
+        return new Promise<object[] | null>((resolve, reject) => {
+            this.sqliteDatabase.all<string>(
+                `
+                SELECT channel_id 
+                FROM KSpamRemovalChannels`,
+                (err: Error | null, rows: object[]) => {
+                    if (err) {
+                        Logger.log(`SQL Error: ${err.message}`, MessageType.WARNING);
+                        resolve(null);
+                        return;
+                    }
+
+                    resolve(rows);
+                    return;
+                }
+            );
+        });
     }
 
     public addRadioStation(radioName: string, radioLink: string): Promise<boolean> {

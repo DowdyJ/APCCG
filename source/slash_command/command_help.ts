@@ -2,10 +2,12 @@ import { CommandInteraction, EmbedBuilder, SlashCommandBuilder } from "discord.j
 import ApccgSlashCommand from "./apccg_slash_command.js";
 import ApccgMessageCommand from "../message_command/apccg_message_command.js";
 import { Logger } from "../logger.js";
+import ApccgIntervalCommand from "../interval_command/apccg_interval_command.js";
 
 export default class CommandHelp extends ApccgSlashCommand {
     private registeredSlashCommands: ApccgSlashCommand[] = [];
     private registeredMessageCommands: ApccgMessageCommand[] = [];
+    private registeredIntervalCommands: ApccgIntervalCommand[] =[];
 
     public override disabled(): boolean {
         return false;
@@ -45,6 +47,18 @@ export default class CommandHelp extends ApccgSlashCommand {
             }
         }
 
+        for (const intervalCommand of this.registeredIntervalCommands) {
+            try {
+                helpEmbed.addFields({
+                    name: intervalCommand.getTitle(),
+                    value: intervalCommand.getDescription(),
+                    inline: false,
+                });
+            } catch (error) {
+                Logger.log((error as Error).message);
+            }
+        }
+
         interaction.reply({ embeds: [helpEmbed] });
 
         return true;
@@ -60,9 +74,11 @@ export default class CommandHelp extends ApccgSlashCommand {
 
     public setRegisteredCommands(
         registeredSlashCommands: ApccgSlashCommand[],
-        registeredMessageCommands: ApccgMessageCommand[]
+        registeredMessageCommands: ApccgMessageCommand[],
+        registeredIntervalCommands: ApccgIntervalCommand[]
     ) {
         this.registeredMessageCommands = registeredMessageCommands;
         this.registeredSlashCommands = registeredSlashCommands;
+        this.registeredIntervalCommands = registeredIntervalCommands;
     }
 }

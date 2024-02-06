@@ -2,7 +2,7 @@ import { CustomClient } from "../customclient.js";
 import Database from "../database.js";
 import { Logger, MessageType } from "../logger.js";
 import ApccgIntervalCommand from "./apccg_interval_command.js";
-import discord, { Channel, CommandInteraction, InteractionType, Message, SlashCommandBuilder, TextChannel, channelLink } from "discord.js"; 
+import discord, { Channel, CommandInteraction, InteractionType, Message, SlashCommandBuilder, TextChannel, User, channelLink } from "discord.js"; 
 
 
 export default class CommandPurgeKarutaSpam extends ApccgIntervalCommand {
@@ -80,12 +80,14 @@ export default class CommandPurgeKarutaSpam extends ApccgIntervalCommand {
     
                         channel.messages.fetch({ limit: this.messagesToLookBackOnLimit, cache: false}).then((messages) => {
                             for (const message of messages.values()) {
-                                if (this.shouldDeleteMessage(message)) {
-                                    message.delete().catch((err)=>{ /*✍️ ( ῟ᾥ῏ )✍️*/ });
-                                }
+                                this.shouldDeleteMessage(message).then(shouldDelete => {
+                                    if (shouldDelete) {
+                                        message.delete().catch((err)=>{ /*✍️ ( ῟ᾥ῏ )✍️*/ });
+                                    }
+                                }).catch((err)=>{ /*ᕙ꒰  ˙꒳​˙   ꒱ᕗ */ }); 
                             }
                         });
-                    });
+                    }).catch((err) => {});
                 }
     
                 return new Promise<boolean>(() => true);
@@ -121,17 +123,25 @@ export default class CommandPurgeKarutaSpam extends ApccgIntervalCommand {
         return new Promise<boolean>(() => true);
     }
 
-    private shouldDeleteMessage(message: Message) {
-        if (Math.abs(message.createdTimestamp - Date.now()/1000) < this.minMessageAgeToDeleteSeconds) {
+    private async shouldDeleteMessage(message: Message) {
+        const karutaId = '646937666251915264';
+        const mantaroId = '213466096718708737';
+
+        if (Math.abs(message.createdTimestamp - Date.now())/1000 < this.minMessageAgeToDeleteSeconds) {
             return false;
         }
 
-        if (message.author.id === '646937666251915264') /* Karuta */ {
+        if (message.author.id === karutaId) {
+            return true;
+        }
+        
+        const messageContent = message.cleanContent;
+        /* Purgable karuta text commands from users */
+        if ((messageContent.startsWith('k') || messageContent.startsWith('K')) && messageContent.length < 30) { 
             return true;
         }
 
-        const messageContent = message.cleanContent;
-        if ((messageContent.startsWith('k') || messageContent.startsWith('K')) && messageContent.length < 30) {
+        if (message.author.id === mantaroId && messageContent.match(/-https:\/\/(twitter|x).com/g)) {
             return true;
         }
     }
@@ -164,9 +174,11 @@ export default class CommandPurgeKarutaSpam extends ApccgIntervalCommand {
 
         interaction.channel.messages.fetch({ limit: this.messagesToLookBackOnLimit, around: aroundMessageId, cache: false}).then((messages) => {
             for (const message of messages.values()) {
-                if (this.shouldDeleteMessage(message)) {
-                    message.delete().catch((err)=>{ /*✍️ ( ῟ᾥ῏ )✍️*/ });
-                }
+                this.shouldDeleteMessage(message).then(shouldDelete => {
+                    if (shouldDelete) {
+                        message.delete().catch((err)=>{ /*✍️ ( ῟ᾥ῏ )✍️*/ });
+                    }
+                }).catch((err)=>{ /*ᕙ꒰  ˙꒳​˙   ꒱ᕗ */ }); 
             }
         });
 

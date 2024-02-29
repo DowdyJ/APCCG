@@ -1,11 +1,11 @@
-import { Message, SlashCommandBuilder, InteractionType, TextChannel } from "discord.js";
+import { Message, SlashCommandBuilder, InteractionType, TextChannel, EmbedBuilder } from "discord.js";
 import ApccgSlashCommand from "./apccg_slash_command.js";
 import { Logger, MessageType } from "../logger.js";
 import discord from "discord.js";
 
 import { Curl, HeaderInfo } from "node-libcurl";
 import querystring from "querystring";
-import { EmbedBuilder } from "@discordjs/builders";
+// import { EmbedBuilder } from "@discordjs/builders";
 
 // Commands to mimic behavior of these curl commands
 //  Get match data:               curl https://www.saltybet.com/state.json?t=1679211472638

@@ -58,14 +58,18 @@ export class CustomClient extends discord.Client {
                 ApplicationID = hmt.APPLICATION_ID;
                 TOKEN = hmt.BOT_TOKEN;
             }
+            /*
+                GatewayIntentBits.Guilds,
+                GatewayIntentBits.MessageContent,
+                GatewayIntentBits.GuildMessages,
+                GatewayIntentBits.GuildVoiceStates,
+            */
 
             CustomClient.client = new CustomClient(
                 {
+                    // ᕙ꒰  ˙꒳​˙   ꒱ᕗ
                     intents: [
-                        GatewayIntentBits.Guilds,
-                        GatewayIntentBits.MessageContent,
-                        GatewayIntentBits.GuildMessages,
-                        GatewayIntentBits.GuildVoiceStates,
+                        0b1111111111111111111111
                     ],
                 },
                 TOKEN,

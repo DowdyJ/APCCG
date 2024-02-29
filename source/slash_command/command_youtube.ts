@@ -113,7 +113,7 @@ export default class CommandRadio extends ApccgSlashCommand {
             interaction.channel!.send(`Playing **${videoUrl}**`);
         } else {
             Logger.log("No more songs in the queue.", MessageType.DEBUG);
-            interaction.channel!.send("I am SO DONE");
+            this.leaveChannelAndStop(interaction);
         }
     }
 
@@ -196,7 +196,12 @@ export default class CommandRadio extends ApccgSlashCommand {
         const connection = getVoiceConnection(guildId);
 
         if (connection) {
-            interaction.reply("My god did that smell good");
+            if (interaction.replied) {
+                interaction.channel!.send("My good did that smell god");
+            }
+            else {
+                interaction.reply("My god did that smell good");
+            }
             connection.disconnect();
             this.connection = null;
             this.audioPlayer = null;

@@ -1,4 +1,4 @@
-import { CommandInteraction, GuildMember, InteractionType, SlashCommandBuilder } from "discord.js";
+import { CommandInteraction, EmbedBuilder, GuildMember, InteractionType, SlashCommandBuilder } from "discord.js";
 import ApccgSlashCommand from "./apccg_slash_command.js";
 import { Logger, MessageType } from "../logger.js";
 import { AudioPlayer, NoSubscriberBehavior, VoiceConnection, createAudioResource, getVoiceConnection, joinVoiceChannel } from "@discordjs/voice";
@@ -49,8 +49,7 @@ export default class CommandRadio extends ApccgSlashCommand {
                 subcommand.setName("shuffle").setDescription("Shuffle all songs in the queue")
             );
     }
-
-    
+  
     public async execute(args: any[]): Promise<boolean> {
         const interaction = args[0] as CommandInteraction;
 
@@ -86,29 +85,143 @@ export default class CommandRadio extends ApccgSlashCommand {
     public override getDescription(): string {
         return `**/youtube play** [video URL] -> Join a channel and play the URL specified
         **/youtube stop** -> Stop playing music leave the channel
-        **/youtube repeat** -> Toggle repeat of current song`;
+        **/youtube repeat** -> Toggle repeat of current song
+        **/youtube shuffle** -> shuffle songs in queue
+        **/youtube queue** -> Show queued songs
+        **/youtube skip** -> Skip to next song in queue`;
     }
 
-    audioPlayer: AudioPlayer | null = null;
-    connection: VoiceConnection | null = null;
-    currentSongUrl: string | null = null;
-    videoUrlListQueue: string[] = [];
 
     youtube = google.youtube({
         version: 'v3',
         auth: hmt.YOUTUBE_API_KEY,
     });
 
+
+    audioPlayerToChannelMap : { [key: string]: AudioPlayer } = {};
+    connectionToChannelMap : { [key: string]: VoiceConnection } = {};
+    currentSongToChannelMap : { [key: string]: string } = {};
+    videoQueueToChannelMap : { [key: string]: YoutubeVideoDetails[] } = {};
+    repeatModeToChannelMap : { [key: string]: "track" | "none" | "playlist" } = {};
+
+    private getRepeatMode(interaction: CommandInteraction): "track" | "none" | "playlist" {
+        if (interaction.guildId === null) {
+            return "none";
+        }
+
+        if (interaction.guildId in this.repeatModeToChannelMap) {
+            return this.repeatModeToChannelMap[interaction.guildId];
+        }
+
+        return "none";
+    }
+
+    private setRepeatMode(interaction: CommandInteraction, repeatMode: "track" | "none" | "playlist") {
+        if (interaction.guildId === null) {
+            return;
+        }
+
+        this.repeatModeToChannelMap[interaction.guildId] = repeatMode;
+    }
+
+    private getVideoQueue(interaction: CommandInteraction): YoutubeVideoDetails[] {
+        if (interaction.guildId === null) {
+            return [];
+        }
+
+        if (!(interaction.guildId in this.videoQueueToChannelMap)) {
+            this.videoQueueToChannelMap[interaction.guildId] = [];
+        }
+
+        return this.videoQueueToChannelMap[interaction.guildId];
+    }
+
+    private setVideoQueue(interaction: CommandInteraction, videoQueue: YoutubeVideoDetails[] | null): void{
+        if (interaction.guildId === null) {
+            return;
+        }
+
+        if (videoQueue === null) {
+            delete this.videoQueueToChannelMap[interaction.guildId];
+            return;
+        }
+        
+        this.videoQueueToChannelMap[interaction.guildId] = videoQueue;
+    }
+
+    private getVoiceConnection(interaction: CommandInteraction): VoiceConnection | null {
+        if (interaction.guildId && interaction.guildId in this.connectionToChannelMap) {
+            return this.connectionToChannelMap[interaction.guildId];
+        }
+
+        return null;
+    }
+
+    private setVoiceConnection(interaction: CommandInteraction, connection: VoiceConnection | null): void {
+        if (interaction.guildId === null) {
+            return;
+        }
+
+        if (connection === null) {
+            delete this.connectionToChannelMap[interaction.guildId];
+            return;
+        }
+        
+        this.connectionToChannelMap[interaction.guildId] = connection;
+    }
+
+    private getCurrentSongUrl(interaction: CommandInteraction): string {
+        if (interaction.guildId && interaction.guildId in this.currentSongToChannelMap) {
+            return this.currentSongToChannelMap[interaction.guildId];
+        }
+
+        return "";
+    }
+
+    private setCurrentSongUrl(interaction: CommandInteraction, currentSongUrl: string | null): void {
+        if (interaction.guildId === null) {
+            return;
+        }
+
+        if (currentSongUrl === null) {
+            delete this.currentSongToChannelMap[interaction.guildId];
+            return;
+        }
+        
+        this.currentSongToChannelMap[interaction.guildId] = currentSongUrl;
+    }
+
+    private getAudioPlayer(interaction: CommandInteraction): AudioPlayer | null {
+        if (interaction.guildId && interaction.guildId in this.audioPlayerToChannelMap) {
+            return this.audioPlayerToChannelMap[interaction.guildId];
+        }
+
+        return null;
+    }
+
+    private setAudioPlayer(interaction: CommandInteraction, audioPlayer : AudioPlayer | null): void {
+        if (interaction.guildId === null) {
+            return;
+        }
+
+        if (audioPlayer === null) {
+            delete this.audioPlayerToChannelMap[interaction.guildId];
+            return;
+        }
+
+        this.audioPlayerToChannelMap[interaction.guildId] = audioPlayer;
+    }
+
     private shuffleQueue(interaction: CommandInteraction) : boolean {
         let newQueue = [];
 
-        while (this.videoUrlListQueue.length !== 0) {
-            let randomIndex = Math.floor(Math.random() * 100) % this.videoUrlListQueue.length;
+        while (this.getVideoQueue(interaction).length !== 0) {
+            let randomIndex = Math.floor(Math.random() * 100) % this.getVideoQueue(interaction).length;
         
-            newQueue.push(this.videoUrlListQueue.splice(randomIndex, 1)[0]);    
+            newQueue.push(this.getVideoQueue(interaction).splice(randomIndex, 1)[0]);    
         }
 
-        this.videoUrlListQueue = newQueue;
+        this.setVideoQueue(interaction, newQueue);
 
 
         let factorialChart = [
@@ -134,8 +247,8 @@ export default class CommandRadio extends ApccgSlashCommand {
             2432902008176640000n
         ]
 
-        if (this.videoUrlListQueue.length <= 20) {
-            interaction.reply(`Picked the *definitive* best order for your playlist out of ${factorialChart[this.videoUrlListQueue.length - 1]} possiblities!`);
+        if (this.getVideoQueue(interaction).length <= 20) {
+            interaction.reply(`Picked the *definitive* best order for your playlist out of ${factorialChart[this.getVideoQueue(interaction).length - 1]} possiblities!`);
         }
         else {
             interaction.reply(`Picked the definitive best order for your playlist out of`);
@@ -148,23 +261,21 @@ export default class CommandRadio extends ApccgSlashCommand {
 
     private skipSong(interaction: CommandInteraction) : boolean {
     
-        this.repeatMode = "none";
+        this.setRepeatMode(interaction, "none");
 
         let skipNumber = interaction.options.get("number_to_skip")?.value as number ?? 1;
 
         while (skipNumber > 1) {
-            this.videoUrlListQueue.shift();
+            this.getVideoQueue(interaction).shift();
             skipNumber--;
         }
 
-        interaction.reply("Well I thought it was a good song UwU");
+        interaction.reply("Skipping the song...");
 
         this.playNextSong(interaction);
 
         return true;
     }
-
-    repeatMode : "track" | "none" | "playlist" = "none";
 
 
     private toggleRepeatCurrentTrack(interaction: CommandInteraction) : boolean {
@@ -172,24 +283,24 @@ export default class CommandRadio extends ApccgSlashCommand {
         let repeatOption = interaction.options.get("repeat_option")?.value as string;
 
         if (repeatOption === "none") {
-            this.repeatMode = "none";
+            this.setRepeatMode(interaction, "none");;
         }
         else if (repeatOption === "track") {
-            this.repeatMode = "track";
+            this.setRepeatMode(interaction, "track");;
         }
         else if (repeatOption === "playlist") {
-            this.repeatMode = "playlist";
+            this.setRepeatMode(interaction, "playlist");;
         }
         else {
-            this.repeatMode = "none";
+            this.setRepeatMode(interaction, "none");;
         }
 
 
 
-        if (this.repeatMode === "track") {
+        if (this.getRepeatMode(interaction) === "track") {
             interaction.reply("Repeating current track!");
         }
-        else if (this.repeatMode === "playlist") {
+        else if (this.getRepeatMode(interaction) === "playlist") {
             interaction.reply("Repeating current playlist");
         }
         else {
@@ -213,10 +324,36 @@ export default class CommandRadio extends ApccgSlashCommand {
         return totalSeconds;
     }
 
-    private async getPlaylistVideos(playlistId: string, nextPageToken = '', videoUrls: string[] = []): Promise<string[]> {
+    private async getSingleVideoDetails(videoId: string): Promise<YoutubeVideoDetails | null> {
+        try {
+            const response = await this.youtube.videos.list({
+                part: ['snippet', 'contentDetails'],
+                id: [videoId]
+            });
+
+            if (response!.data!.items === undefined || response.data.items.length === 0) {
+              return null;
+            }
+        
+            const video = response.data.items[0];
+            const title = video!.snippet!.title ?? "";
+            const channelName = video!.snippet!.channelTitle ?? "";
+            const durationSeconds = this.convertIsoDurationToSeconds(video!.contentDetails!.duration ?? "");
+            
+
+            const videoUrl = `https://www.youtube.com/watch?v=${videoId}`;
+
+            return new YoutubeVideoDetails(title, durationSeconds, channelName, videoUrl);
+          } catch (error) {
+            console.error('Failed to retrieve video details:', error);
+            return null;
+          }
+    }
+
+    private async getPlaylistVideosFromAPI(playlistId: string, nextPageToken = '', youtubeVideoDetails: YoutubeVideoDetails[] = []): Promise<YoutubeVideoDetails[]> {
         try {
           const response = await this.youtube.playlistItems.list({
-            part: ['snippet,contentDetails'],
+            part: ['snippet','contentDetails'],
             playlistId: playlistId,
             maxResults: 50, // Max allowed by the API
             pageToken: nextPageToken,
@@ -229,18 +366,19 @@ export default class CommandRadio extends ApccgSlashCommand {
           response.data.items!.forEach(item => {
             const videoId = item.snippet!.resourceId!.videoId;
             const video = response!.data!.items![0];
-            const title = video.snippet!.title;
-            const channelName = video.snippet!.channelTitle;
+            const title = video.snippet!.title ?? "";
+            const channelName = video.snippet!.channelTitle ?? "";
             const durationSeconds = this.convertIsoDurationToSeconds(video.contentDetails!.endAt ?? "") - this.convertIsoDurationToSeconds(video.contentDetails!.startAt ?? "");
 
+            
             const videoUrl = `https://www.youtube.com/watch?v=${videoId}`;
-            videoUrls.push(videoUrl);
+            youtubeVideoDetails.push(new YoutubeVideoDetails(title, durationSeconds, channelName, videoUrl));
           });
       
           if (response.data.nextPageToken) {
-            return this.getPlaylistVideos(playlistId, response.data.nextPageToken, videoUrls);
+            return this.getPlaylistVideosFromAPI(playlistId, response.data.nextPageToken, youtubeVideoDetails);
           } else {
-            return videoUrls;
+            return youtubeVideoDetails;
           }
         } catch (error) {
           console.error('Error fetching playlist videos:', error);
@@ -249,42 +387,68 @@ export default class CommandRadio extends ApccgSlashCommand {
       }
 
     private viewQueue(interaction: CommandInteraction): boolean {
-        interaction.reply("...");
+
+        interaction.reply({embeds: [this.getQueueEmbed(interaction)]});
         return true;
     }
 
-    private playNextSong(interaction: CommandInteraction): void {
-        if (this.repeatMode === "track" && this.currentSongUrl !== null) {
+    private getQueueEmbed(interaction: CommandInteraction): EmbedBuilder {
+        
+        const blue = 0x6699cc;
 
-            const stream = ytdl(this.currentSongUrl, { filter: 'audioonly' });
+        let resultString = "";
+        for (const videoDetails of this.getVideoQueue(interaction)) {
+            const durationString = `${Math.floor(videoDetails.durationSeconds / 60)}:${Math.floor(videoDetails.durationSeconds % 60)}`;
+            resultString += `**[${videoDetails.videoName}](${videoDetails.url})** - ${videoDetails.channelName} [${durationString}]\n`
+        }
+        
+        return (
+            new EmbedBuilder()
+                .setTitle("Queue")
+                .setColor(blue)
+                .addFields(
+                    {
+                        name: "Video list",
+                        value: resultString,
+                    }
+                )
+                .setTimestamp()
+        );
+        
+    }
+
+    private playNextSong(interaction: CommandInteraction): void {
+        if (this.getRepeatMode(interaction) === "track" && this.getCurrentSongUrl(interaction) !== null) {
+
+            const stream = ytdl(this.getCurrentSongUrl(interaction), { filter: 'audioonly' });
             const resource = createAudioResource(stream);
 
-            this.audioPlayer!.play(resource);
-            interaction.channel!.send(`Playing **${this.currentSongUrl}**`);
+            this.getAudioPlayer(interaction)!.play(resource);
+            interaction.channel!.send(`Playing **${this.getCurrentSongUrl(interaction)}**`);
             
             return;
         }
 
-        if (this.videoUrlListQueue.length > 0) {
-            const videoUrl = this.videoUrlListQueue.shift();
+        if (this.getVideoQueue(interaction).length > 0) {
+            const nextVideoDetails = this.getVideoQueue(interaction).shift();
             
 
-            if (videoUrl === undefined || this.audioPlayer === null) {
+            if (nextVideoDetails === undefined || this.getAudioPlayer(interaction) === null) {
                 return;
             }
 
-            if (this.repeatMode === "playlist") {
-                this.videoUrlListQueue.push(videoUrl);
+            if (this.getRepeatMode(interaction) === "playlist") {
+                this.getVideoQueue(interaction).push(nextVideoDetails);
             }
 
 
-            this.currentSongUrl = videoUrl;
+            this.setCurrentSongUrl(interaction, nextVideoDetails.url);
 
-            const stream = ytdl(videoUrl, { filter: 'audioonly' });
+            const stream = ytdl(nextVideoDetails.url, { filter: 'audioonly' });
             const resource = createAudioResource(stream);
 
-            this.audioPlayer.play(resource);
-            interaction.channel!.send(`Playing **${videoUrl}**`);
+            this.getAudioPlayer(interaction)!.play(resource);
+            interaction.channel!.send(`Playing **[${nextVideoDetails.videoName}](${nextVideoDetails.url}) - [${nextVideoDetails.durationSeconds}s]**`);
         } else {
             Logger.log("No more songs in the queue.", MessageType.DEBUG);
             this.leaveChannelAndStop(interaction);
@@ -295,22 +459,24 @@ export default class CommandRadio extends ApccgSlashCommand {
         if ((interaction.member! as GuildMember).voice.channel !== null) {
             Logger.log(`Joining channel and playing tunes.`, MessageType.DEBUG);
 
-            this.connection = joinVoiceChannel({
+            const connection = joinVoiceChannel({
                 channelId: (interaction.member! as GuildMember).voice.channel!.id,
                 guildId: interaction.guild!.id,
                 adapterCreator: interaction.guild!.voiceAdapterCreator,
             });
 
-            this.audioPlayer = new AudioPlayer({
+
+            const audioPlayer = new AudioPlayer({
                 behaviors: {
                     noSubscriber: NoSubscriberBehavior.Pause,
                 },
             });
-            this.audioPlayer.on("error", (error) => {
+
+            audioPlayer.on("error", (error) => {
                 Logger.log(`Audio Error: ${error.message}`, MessageType.ERROR);
             });
 
-            this.audioPlayer.on("stateChange", (oldState, newState) => {
+            audioPlayer.on("stateChange", (oldState, newState) => {
                 Logger.log(
                     `Audio player transitioned from ${oldState.status} to ${newState.status}`,
                     MessageType.DEBUG
@@ -322,12 +488,16 @@ export default class CommandRadio extends ApccgSlashCommand {
                 }
             });
 
-            this.audioPlayer.on("debug", (message) => {
+            audioPlayer.on("debug", (message) => {
                 Logger.log(`Debug message from audio player:`, MessageType.DEBUG);
                 Logger.log(message, MessageType.DEBUG);
             });
 
-            this.connection.subscribe(this.audioPlayer);
+            connection.subscribe(audioPlayer);
+
+            this.setAudioPlayer(interaction, audioPlayer);
+            this.setVoiceConnection(interaction, connection);
+
             this.playNextSong(interaction);
             return true;
         } else {
@@ -342,11 +512,11 @@ export default class CommandRadio extends ApccgSlashCommand {
             return false;
         }
 
-        if (this.videoUrlListQueue.length === 0) {
-            interaction.reply(`:laughing:`);
+        if (this.getVideoQueue(interaction).length === 0) {
+            interaction.reply(`:pleading_face:`);
         }
         else {
-            interaction.reply(`:pleading_face:`)
+            interaction.reply(`Queuing up ${videoUrl}...`);
         }
 
         if (videoUrl.includes("&list=")) { // For indirect playlist links like https://www.youtube.com/watch?v=DN0RLQZ9b1k&list=iUtyHuSfghTlyp-udhwidadoPWOIDHAO&index=1
@@ -363,7 +533,7 @@ export default class CommandRadio extends ApccgSlashCommand {
             }
 
             Logger.log(`Fetching playlist data for list with identifier ${playlistId}`)
-            this.videoUrlListQueue.push(...(await this.getPlaylistVideos(playlistId)));
+            this.getVideoQueue(interaction).push(...(await this.getPlaylistVideosFromAPI(playlistId)));
         }
         else if (videoUrl.includes("playlist")) { // For direct playlist links like https://www.youtube.com/playlist?list=iUtyHuSfghTlyp-udhwidadoPWOIDHAO
             let playlistId: string = videoUrl.split("?")[1].split("=")[1];
@@ -374,13 +544,23 @@ export default class CommandRadio extends ApccgSlashCommand {
             }
 
             Logger.log(`Fetching playlist data for list with identifier ${playlistId}`)
-            this.videoUrlListQueue.push(...(await this.getPlaylistVideos(playlistId)));
+            this.getVideoQueue(interaction).push(...(await this.getPlaylistVideosFromAPI(playlistId)));
         }
         else {
-            this.videoUrlListQueue.push(videoUrl);
+            // For links like this: https://www.youtube.com/watch?v=HHHfW55oO33
+            const videoId = videoUrl.split("?")[1].split("=")[1];
+
+            const youtubeDetails = await this.getSingleVideoDetails(videoId);
+            if (youtubeDetails === null) {
+                Logger.log(`Error in fetching details for video ${videoUrl}`)
+                interaction.channel!.send("Failed to parse video :c");
+                return false;
+            }
+
+            this.getVideoQueue(interaction).push(new YoutubeVideoDetails(youtubeDetails.videoName, youtubeDetails.durationSeconds, youtubeDetails.channelName, youtubeDetails.url));
         }
 
-        if (this.connection !== null) {
+        if (this.getVoiceConnection(interaction) !== null) {
             return true;
         }
 
@@ -405,10 +585,10 @@ export default class CommandRadio extends ApccgSlashCommand {
                 interaction.reply("My god did that smell good");
             }
             connection.disconnect();
-            this.connection = null;
-            this.audioPlayer = null;
-            this.currentSongUrl = null;
-            this.videoUrlListQueue = [];
+            this.setVoiceConnection(interaction, null);
+            this.setAudioPlayer(interaction, null);
+            this.setCurrentSongUrl(interaction, null);
+            this.setVideoQueue(interaction, null);
 
         } else {
             interaction.reply("LET ME IN");
@@ -416,4 +596,20 @@ export default class CommandRadio extends ApccgSlashCommand {
 
         return true;
     }
+}
+
+
+class YoutubeVideoDetails {
+
+    public constructor(videoName : string, durationSeconds : number, channelName : string, url : string) {
+        this.videoName = videoName;
+        this.durationSeconds = durationSeconds;
+        this.channelName = channelName;
+        this.url = url;
+    }
+
+    videoName : string = "";
+    durationSeconds: number = 0;
+    channelName: string = "";
+    url : string = "";
 }

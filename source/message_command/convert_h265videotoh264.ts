@@ -42,9 +42,9 @@ export default class CommandFixTwitterLinks extends ApccgMessageCommand {
                 });
 
                 const output = `./tmp/video_data/${Math.round(Math.random() * 10000000)}.mp4`;
-
-                ffmpeg(url)
-                    .videoCodec("libx264")
+                
+                (ffmpeg(url)
+                    .videoCodec("libx264") as any)
                     .on("end", function () {
                         message.channel
                             .send({
@@ -63,7 +63,7 @@ export default class CommandFixTwitterLinks extends ApccgMessageCommand {
                                 fs.rm(output, () => {});
                             });
                     })
-                    .on("error", function (err) {
+                    .on("error", function (err : any) {
                         console.error("Error:", err);
                     })
                     .save(output);

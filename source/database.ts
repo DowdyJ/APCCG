@@ -61,6 +61,53 @@ export default class Database {
         this.sqliteDatabase.run(`CREATE TABLE IF NOT EXISTS KSpamRemovalChannels (
             channel_id TEXT PRIMARY KEY NOT NULL
         )`);
+
+        this.sqliteDatabase.run(`CREATE TABLE IF NOT EXISTS KedamaFaces (
+            id INTEGER PRIMARY KEY,
+            face TEXT NOT NULL UNIQUE
+        )`);
+    }
+
+    public getAllKedama() : Promise<object[] | null> {
+        Logger.log(`Getting all kedama faces`);
+        return new Promise<object[] | null>((resolve, reject) => {
+            this.sqliteDatabase.all<string>(
+                `
+                SELECT face 
+                FROM KedamaFaces`,
+                (err: Error | null, rows: object[]) => {
+                    if (err) {
+                        Logger.log(`SQL Error: ${err.message}`, MessageType.WARNING);
+                        resolve(null);
+                        return;
+                    }
+
+                    resolve(rows);
+                    return;
+                }
+            );
+        });
+    }
+
+    public addKedama(kaomoji: string) : Promise<boolean> {
+        Logger.log(`Adding face ${kaomoji}`);
+        return new Promise<boolean>((resolve, reject) => {
+            this.sqliteDatabase.run(
+                `
+            INSERT INTO KedamaFaces (face)
+            VALUES (?)`,
+                [kaomoji],
+                (err: Error | null) => {
+                    if (err) {
+                        Logger.log(`SQL Error: ${err.message}`, MessageType.WARNING);
+                        resolve(false);
+                        return;
+                    }
+                    resolve(true);
+                    return;
+                }
+            );
+        });
     }
 
     public addChannelToKPurge(channelId: string): Promise<boolean> {

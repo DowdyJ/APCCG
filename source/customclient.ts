@@ -12,7 +12,7 @@ import hmt from "../hmt.json" assert { type: "json" };
 import ApccgMessageCommand from "./message_command/apccg_message_command.js";
 import CommandHelp from "./slash_command/command_help.js";
 import ApccgIntervalCommand from "./interval_command/apccg_interval_command.js";
-import { Logger } from "./logger.js";
+import { Logger, MessageType } from "./logger.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -29,8 +29,13 @@ export class CustomClient extends discord.Client {
                 setTimeout(() => {
                     Logger.log(`Registering regular interval command ${intervalCommand.commandData().name}`);
                     setInterval(() => {
-                        Logger.log(`Executing regular interval command`);
-                        intervalCommand.executeInterval()
+                        try {
+                            Logger.log(`Executing regular interval command`);
+                            intervalCommand.executeInterval()
+                        }
+                        catch (err) {
+                            Logger.log(err, MessageType.LOG);
+                        }
                     }, 
                     intervalCommand.getInterval() * 1000);
                 }, 10 * 1000);
@@ -38,7 +43,10 @@ export class CustomClient extends discord.Client {
         })
         
         this.on("messageCreate", (message: discord.Message) => {
-            this.handleMessages(message);
+            try {
+                this.handleMessages(message);
+            }
+            catch (err) {}
         });
     
         return;

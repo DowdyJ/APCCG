@@ -1,8 +1,8 @@
-import { CommandInteraction, EmbedBuilder, GuildMember, InteractionType, SlashCommandBuilder } from "discord.js";
+import { CommandInteraction, EmbedBuilder, GuildMember, InteractionType, Message, SlashCommandBuilder } from "discord.js";
 import ApccgSlashCommand from "./apccg_slash_command.js";
 import { Logger, MessageType } from "../logger.js";
 import { AudioPlayer, NoSubscriberBehavior, VoiceConnection, createAudioResource, getVoiceConnection, joinVoiceChannel } from "@discordjs/voice";
-import ytdl from 'ytdl-core';
+import ytdl from '@distube/ytdl-core';
 import { google } from 'googleapis';
 import hmt from "../../hmt.json" assert { type: "json" };
 
@@ -314,16 +314,21 @@ export default class CommandRadio extends ApccgSlashCommand {
 
 
     private convertIsoDurationToSeconds(isoDuration : string) : number {
-        let totalSeconds = 0;
-        let hours = isoDuration.match(/(\d+)H/);
-        let minutes = isoDuration.match(/(\d+)M/);
-        let seconds = isoDuration.match(/(\d+)S/);
-    
-        if (hours) totalSeconds += parseInt(hours[1]) * 3600;
-        if (minutes) totalSeconds += parseInt(minutes[1]) * 60;
-        if (seconds) totalSeconds += parseInt(seconds[1]);
-    
-        return totalSeconds;
+        try {
+            let totalSeconds = 0;
+            let hours = isoDuration.match(/(\d+)H/);
+            let minutes = isoDuration.match(/(\d+)M/);
+            let seconds = isoDuration.match(/(\d+)S/);
+        
+            if (hours) totalSeconds += parseInt(hours[1]) * 3600;
+            if (minutes) totalSeconds += parseInt(minutes[1]) * 60;
+            if (seconds) totalSeconds += parseInt(seconds[1]);
+        
+            return totalSeconds;
+        }
+        catch (err) {
+            Logger.log(err, MessageType.LOG);
+        }
     }
 
     private async getSingleVideoDetails(videoId: string): Promise<YoutubeVideoDetails | null> {
@@ -331,14 +336,18 @@ export default class CommandRadio extends ApccgSlashCommand {
             const response = await this.youtube.videos.list({
                 part: ['snippet', 'contentDetails'],
                 id: [videoId]
-            });
+            }).catch(err => Logger.log(err, MessageType.LOG));
 
-            if (response!.data!.items === undefined || response.data.items.length === 0) {
+            if (response == null) {
+                Logger.log("Exception occured in getSingleVideoDetails");
+                return null;
+            }
+            if ((response as any)!.data!.items === undefined || (response as any).data.items.length === 0) {
                 Logger.log("Failed in first section");
               return null;
             }
         
-            const video = response.data.items[0];
+            const video = (response as any).data.items[0];
             const title = video!.snippet!.title ?? "";
             const channelName = video!.snippet!.channelTitle ?? "";
             const durationSeconds = this.convertIsoDurationToSeconds(video!.contentDetails!.duration ?? "");
@@ -353,7 +362,7 @@ export default class CommandRadio extends ApccgSlashCommand {
           }
     }
 
-    private async getPlaylistVideosFromAPI(playlistId: string, nextPageToken = '', youtubeVideoDetails: YoutubeVideoDetails[] = []): Promise<YoutubeVideoDetails[]> {
+    private async getPlaylistVideosFromAPI(playlistId: string, nextPageToken = '', youtubeVideoDetails: YoutubeVideoDetails[] = []): Promise<YoutubeVideoDetails[] | null> {
         try {
           const response = await this.youtube.playlistItems.list({
             part: ['snippet','contentDetails'],
@@ -382,7 +391,7 @@ export default class CommandRadio extends ApccgSlashCommand {
           });
       
           if (response.data.nextPageToken) {
-            return this.getPlaylistVideosFromAPI(playlistId, response.data.nextPageToken, youtubeVideoDetails);
+            return this.getPlaylistVideosFromAPI(playlistId, response.data.nextPageToken, youtubeVideoDetails).catch((err) => { Logger.log(err, MessageType.LOG)}) as any;
           } else {
             return youtubeVideoDetails;
           }
@@ -393,91 +402,104 @@ export default class CommandRadio extends ApccgSlashCommand {
       }
 
     private viewQueue(interaction: CommandInteraction): boolean {
-
-        interaction.reply({embeds: [this.getQueueEmbed(interaction)]});
-        return true;
+        try {
+            interaction.reply({embeds: [this.getQueueEmbed(interaction)]});
+            return true;
+        }
+        catch (err) {
+            Logger.log(err, MessageType.LOG);
+        }
     }
 
     private getQueueEmbed(interaction: CommandInteraction): EmbedBuilder {
-        
-        const blue = 0x6699cc;
+        try {
+            const blue = 0x6699cc;
 
-        let queueString = "";
-
-        for (const videoDetails of this.getVideoQueue(interaction)) {
-            const durationString = `${Math.floor(videoDetails.durationSeconds / 60)}:${Math.floor(videoDetails.durationSeconds % 60)}`;
-            const newString = `**[${videoDetails.videoName}]** - ${videoDetails.channelName} [${durationString === "0" ? "?" : durationString}]\n`;
-
-            if (newString.length + queueString.length >= 1020) {
-                queueString += "...";
-                break;
+            let queueString = "";
+    
+            for (const videoDetails of this.getVideoQueue(interaction)) {
+                const durationString = `${Math.floor(videoDetails.durationSeconds / 60)}:${Math.floor(videoDetails.durationSeconds % 60)}`;
+                const newString = `**[${videoDetails.videoName}]** - ${videoDetails.channelName} [${durationString === "0" ? "?" : durationString}]\n`;
+    
+                if (newString.length + queueString.length >= 1020) {
+                    queueString += "...";
+                    break;
+                }
+    
+                queueString += newString;
             }
-
-            queueString += newString;
+            
+            return (
+                new EmbedBuilder()
+                    .setTitle("Queue")
+                    .setColor(blue)
+                    .addFields(
+                        {
+                            name: "Currently playing",
+                            value: this.getCurrentSongUrl(interaction)
+                        },
+                        {
+                            name: "Queue",
+                            value: queueString,
+                        }
+                    )
+                    .setTimestamp()
+            );
         }
-        
-        return (
-            new EmbedBuilder()
-                .setTitle("Queue")
-                .setColor(blue)
-                .addFields(
-                    {
-                        name: "Currently playing",
-                        value: this.getCurrentSongUrl(interaction)
-                    },
-                    {
-                        name: "Queue",
-                        value: queueString,
-                    }
-                )
-                .setTimestamp()
-        );
-        
+        catch (err) {
+            Logger.log(err, MessageType.LOG);
+        }
     }
 
     private playNextSong(interaction: CommandInteraction): void {
-        if (this.getRepeatMode(interaction) === "track" && this.getCurrentSongUrl(interaction) !== null) {
+        try {
+            if (this.getRepeatMode(interaction) === "track" && this.getCurrentSongUrl(interaction) !== null) {
 
-            const stream = ytdl(this.getCurrentSongUrl(interaction), { filter: 'audioonly' });
-            const resource = createAudioResource(stream);
-
-            this.getAudioPlayer(interaction)!.play(resource);
-
-            // Spams chat with the same message on account of the repeating nature.
-            // interaction.channel!.send(`Playing **${this.getCurrentSongUrl(interaction)}**`);
-            
-            return;
-        }
-
-        if (this.getVideoQueue(interaction).length > 0) {
-            const nextVideoDetails = this.getVideoQueue(interaction).shift();
-            
-
-            if (nextVideoDetails === undefined || this.getAudioPlayer(interaction) === null) {
+                const stream = ytdl(this.getCurrentSongUrl(interaction), { filter: 'audioonly' });
+                const resource = createAudioResource(stream);
+    
+                this.getAudioPlayer(interaction)!.play(resource);
+    
+                // Spams chat with the same message on account of the repeating nature.
+                // interaction.channel!.send(`Playing **${this.getCurrentSongUrl(interaction)}**`);
+                
                 return;
             }
-
-            if (this.getRepeatMode(interaction) === "playlist") {
-                this.getVideoQueue(interaction).push(nextVideoDetails);
+    
+            if (this.getVideoQueue(interaction).length > 0) {
+                const nextVideoDetails = this.getVideoQueue(interaction).shift();
+                
+    
+                if (nextVideoDetails === undefined || this.getAudioPlayer(interaction) === null) {
+                    return;
+                }
+    
+                if (this.getRepeatMode(interaction) === "playlist") {
+                    this.getVideoQueue(interaction).push(nextVideoDetails);
+                }
+    
+    
+                this.setCurrentSongUrl(interaction, nextVideoDetails.url);
+    
+                const stream = ytdl(nextVideoDetails.url, { filter: 'audioonly' });
+                const resource = createAudioResource(stream);
+    
+                this.getAudioPlayer(interaction)!.play(resource);
+                interaction.channel!.send(`Playing **[${nextVideoDetails.videoName}](${nextVideoDetails.url}) - [${nextVideoDetails.durationSeconds}s]**`);
+            } else {
+                Logger.log("No more songs in the queue.", MessageType.DEBUG);
+                this.leaveChannelAndStop(interaction);
             }
-
-
-            this.setCurrentSongUrl(interaction, nextVideoDetails.url);
-
-            const stream = ytdl(nextVideoDetails.url, { filter: 'audioonly' });
-            const resource = createAudioResource(stream);
-
-            this.getAudioPlayer(interaction)!.play(resource);
-            interaction.channel!.send(`Playing **[${nextVideoDetails.videoName}](${nextVideoDetails.url}) - [${nextVideoDetails.durationSeconds}s]**`);
-        } else {
-            Logger.log("No more songs in the queue.", MessageType.DEBUG);
-            this.leaveChannelAndStop(interaction);
+        }
+        catch (err) {
+            Logger.log(err, MessageType.LOG);
         }
     }
 
     private joinChannelAndRegisterHooks(interaction: CommandInteraction) {
-        if ((interaction.member! as GuildMember).voice.channel !== null) {
-            Logger.log(`Joining channel and playing tunes.`, MessageType.DEBUG);
+        try {
+            if ((interaction.member! as GuildMember).voice.channel !== null) {
+                Logger.log(`Joining channel and playing tunes.`, MessageType.DEBUG);
 
             const connection = joinVoiceChannel({
                 channelId: (interaction.member! as GuildMember).voice.channel!.id,
@@ -520,112 +542,138 @@ export default class CommandRadio extends ApccgSlashCommand {
 
             this.playNextSong(interaction);
             return true;
-        } else {
-            interaction.reply("Where exactly should I play those sick tunes HMMM?");
+            } else {
+                interaction.reply("Where exactly should I play those sick tunes HMMM?");
+            }
+        }
+        catch (err) {
+            Logger.log(err, MessageType.LOG);
         }
     }
 
     private async queueSong(interaction: CommandInteraction): Promise<boolean> {
-        const videoUrl = interaction.options.get("video_url")?.value;
-        if (typeof videoUrl !== 'string') {
-            interaction.reply("That is certainly not the URL of the video!");
-            return false;
-        }
-        
-        interaction.reply(`Queuing up ${videoUrl}...`);
-
-        if (videoUrl.includes("&list=")) { // For indirect playlist links like https://www.youtube.com/watch?v=DN0RLQZ9b1k&list=iUtyHuSfghTlyp-udhwidadoPWOIDHAO&index=1
-            let playlistId: string = "";
-            videoUrl.split("&").forEach((substring) => {
-                if (substring.includes("list=")) {
-                    playlistId = substring.split("=")[1];
+        try {
+            const videoUrl = interaction.options.get("video_url")?.value;
+            if (typeof videoUrl !== 'string') {
+                interaction.reply("That is certainly not the URL of the video!");
+                return false;
+            }
+            
+            interaction.reply(`Queuing up ${videoUrl}...`);
+    
+            if (videoUrl.includes("&list=")) { // For indirect playlist links like https://www.youtube.com/watch?v=DN0RLQZ9b1k&list=iUtyHuSfghTlyp-udhwidadoPWOIDHAO&index=1
+                let playlistId: string = "";
+                videoUrl.split("&").forEach((substring) => {
+                    if (substring.includes("list=")) {
+                        playlistId = substring.split("=")[1];
+                    }
+                })
+    
+                if (playlistId === "") {
+                    interaction.channel!.send("Failed to parse playlist :c");
+                    return false;
                 }
-            })
-
-            if (playlistId === "") {
-                interaction.channel!.send("Failed to parse playlist :c");
-                return false;
+    
+                Logger.log(`Fetching playlist data for list with identifier ${playlistId}`)
+                let results = await this.getPlaylistVideosFromAPI(playlistId);
+                if (results == null) {
+                    Logger.log("Ran into exception when getting videos");
+                    return false;
+                }
+                this.getVideoQueue(interaction).push(...(results));
             }
+            else if (videoUrl.includes("playlist")) { // For direct playlist links like https://www.youtube.com/playlist?list=iUtyHuSfghTlyp-udhwidadoPWOIDHAO
+                let playlistId: string = videoUrl.split("?")[1].split("=")[1];
+    
+                if (playlistId === "") {
+                    interaction.channel!.send("Failed to parse playlist :c");
+                    return false;
+                }
+    
+                Logger.log(`Fetching playlist data for list with identifier ${playlistId}`)
+                let results = await this.getPlaylistVideosFromAPI(playlistId);
+                if (results == null) {
+                    Logger.log("Ran into exception when getting videos");
+                    return false;
+                }
 
-            Logger.log(`Fetching playlist data for list with identifier ${playlistId}`)
-            this.getVideoQueue(interaction).push(...(await this.getPlaylistVideosFromAPI(playlistId)));
-        }
-        else if (videoUrl.includes("playlist")) { // For direct playlist links like https://www.youtube.com/playlist?list=iUtyHuSfghTlyp-udhwidadoPWOIDHAO
-            let playlistId: string = videoUrl.split("?")[1].split("=")[1];
-
-            if (playlistId === "") {
-                interaction.channel!.send("Failed to parse playlist :c");
-                return false;
+                this.getVideoQueue(interaction).push(...(results));
             }
-
-            Logger.log(`Fetching playlist data for list with identifier ${playlistId}`)
-            this.getVideoQueue(interaction).push(...(await this.getPlaylistVideosFromAPI(playlistId)));
-        }
-        else if (videoUrl.includes("youtu.be")) {
-            // For links like this: https://youtu.be/ZZzzvYJ8gAY
-
-            let videoId = videoUrl.split(".be/")[1];
-            if (videoId.includes("?")) {
-                videoId = videoId.split("?")[0];
+            else if (videoUrl.includes("youtu.be")) {
+                // For links like this: https://youtu.be/ZZzzvYJ8gAY
+    
+                let videoId = videoUrl.split(".be/")[1];
+                if (videoId.includes("?")) {
+                    videoId = videoId.split("?")[0];
+                }
+                const youtubeDetails = await this.getSingleVideoDetails(videoId);
+                if (youtubeDetails === null) {
+                    Logger.log(`Error in fetching details for video ${videoUrl}`)
+                    interaction.channel!.send("Failed to parse video :c");
+                    return false;
+                }
+    
+                this.getVideoQueue(interaction).push(new YoutubeVideoDetails(youtubeDetails.videoName, youtubeDetails.durationSeconds, youtubeDetails.channelName, youtubeDetails.url));
             }
-            const youtubeDetails = await this.getSingleVideoDetails(videoId);
-            if (youtubeDetails === null) {
-                Logger.log(`Error in fetching details for video ${videoUrl}`)
-                interaction.channel!.send("Failed to parse video :c");
-                return false;
+            else {
+                // For links like this: https://www.youtube.com/watch?v=HHHfW55oO33
+                const videoId = videoUrl.split("?")[1].split("=")[1].slice(0, 11);
+    
+                const youtubeDetails = await this.getSingleVideoDetails(videoId);
+                if (youtubeDetails === null) {
+                    Logger.log(`Error in fetching details for video ${videoUrl}`)
+                    interaction.channel!.send("Failed to parse video :c");
+                    return false;
+                }
+    
+                this.getVideoQueue(interaction).push(new YoutubeVideoDetails(youtubeDetails.videoName, youtubeDetails.durationSeconds, youtubeDetails.channelName, youtubeDetails.url));
             }
-
-            this.getVideoQueue(interaction).push(new YoutubeVideoDetails(youtubeDetails.videoName, youtubeDetails.durationSeconds, youtubeDetails.channelName, youtubeDetails.url));
-        }
-        else {
-            // For links like this: https://www.youtube.com/watch?v=HHHfW55oO33
-            const videoId = videoUrl.split("?")[1].split("=")[1].slice(0, 11);
-
-            const youtubeDetails = await this.getSingleVideoDetails(videoId);
-            if (youtubeDetails === null) {
-                Logger.log(`Error in fetching details for video ${videoUrl}`)
-                interaction.channel!.send("Failed to parse video :c");
-                return false;
+    
+            if (this.getVoiceConnection(interaction) !== null) {
+                return true;
             }
-
-            this.getVideoQueue(interaction).push(new YoutubeVideoDetails(youtubeDetails.videoName, youtubeDetails.durationSeconds, youtubeDetails.channelName, youtubeDetails.url));
-        }
-
-        if (this.getVoiceConnection(interaction) !== null) {
+    
+            this.joinChannelAndRegisterHooks(interaction);
+    
             return true;
+
         }
-
-        this.joinChannelAndRegisterHooks(interaction);
-
-        return true;
+        catch (err) {
+            Logger.log(err, MessageType.LOG);
+        }
     }
 
     private async leaveChannelAndStop(interaction: CommandInteraction): Promise<boolean> {
-        const guildId = interaction.guild!.id;
-        if (!guildId) {
-            return false;
-        }
-
-        const connection = getVoiceConnection(guildId);
-
-        if (connection) {
-            if (interaction.replied) {
-                interaction.channel!.send("My good did that smell god");
+        try {
+            const guildId = interaction.guild!.id;
+            if (!guildId) {
+                return false;
             }
-            else {
-                interaction.reply("My god did that smell good");
+    
+            const connection = getVoiceConnection(guildId);
+    
+            if (connection) {
+                if (interaction.replied) {
+                    interaction.channel!.send("My good did that smell god");
+                }
+                else {
+                    interaction.reply("My god did that smell good");
+                }
+                connection.disconnect();
+                this.setVoiceConnection(interaction, null);
+                this.setAudioPlayer(interaction, null);
+                this.setCurrentSongUrl(interaction, null);
+                this.setVideoQueue(interaction, null);
+    
+            } else {
+                interaction.reply("LET ME IN");
             }
-            connection.disconnect();
-            this.setVoiceConnection(interaction, null);
-            this.setAudioPlayer(interaction, null);
-            this.setCurrentSongUrl(interaction, null);
-            this.setVideoQueue(interaction, null);
-
-        } else {
-            interaction.reply("LET ME IN");
+    
+            return true;   
         }
-
-        return true;
+        catch (err) {
+            Logger.log(err, MessageType.LOG);
+        }
     }
 }
 

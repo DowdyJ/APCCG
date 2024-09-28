@@ -66,6 +66,102 @@ export default class Database {
             id INTEGER PRIMARY KEY,
             face TEXT NOT NULL UNIQUE
         )`);
+
+        this.sqliteDatabase.run(`CREATE TABLE IF NOT EXISTS CustomCommands (
+            command_name TEXT PRIMARY KEY NOT NULL,
+            command_text TEXT,
+            attachment_path TEXT
+        )`);
+    }
+
+    public getAllCustomCommandNames() : Promise<object[] | null> {
+        Logger.log(`Getting all commands`);
+        return new Promise<object[] | null>((resolve, reject) => {
+            this.sqliteDatabase.all<string>(
+                `
+                SELECT command_name 
+                FROM CustomCommands`,
+                (err: Error | null, rows: object[]) => {
+                    if (err) {
+                        Logger.log(`SQL Error: ${err.message}`, MessageType.WARNING);
+                        resolve(null);
+                        return;
+                    }
+
+                    resolve(rows);
+                    return;
+                }
+            );
+        });
+    }
+
+    public getSingleCommand(commandName : string) : Promise<object | null> {
+        return new Promise<object | null>((resolve, reject) => {
+            this.sqliteDatabase.all<string>(
+                `
+                SELECT command_name, command_text, attachment_path 
+                FROM CustomCommands
+                WHERE command_name = ?`,
+                [commandName],
+                (err: Error | null, rows: unknown[]) => {
+                    if (err) {
+                        Logger.log(`SQL Error: ${err.message}`, MessageType.WARNING);
+                        resolve(null);
+                        return;
+                    }
+                    if (rows == null || rows.length === 0) {
+                        resolve(null);
+                        return;
+                    }
+
+                    let result = rows[0];
+                    resolve(result as object);
+                    return;
+                }
+            );
+        });
+    }
+
+    public removeSingleCommand(commandName : string) : Promise<boolean> {
+        Logger.log(`Removing command '${commandName}'`);
+        return new Promise<boolean>((resolve, reject) => {
+            this.sqliteDatabase.run(
+                `
+            DELETE FROM CustomCommands
+            WHERE command_name = ?`,
+                [commandName],
+                (err: Error | null) => {
+                    if (err) {
+                        Logger.log(`SQL Error: ${err.message}`, MessageType.WARNING);
+                        resolve(false);
+                        return;
+                    }
+                    resolve(true);
+                    return;
+                }
+            );
+        });
+    }
+
+    public addCustomCommand(commandName : string, commandText : string, attachmentPath : string) : Promise<boolean> {
+        Logger.log(`Adding command ${commandName}`);
+        return new Promise<boolean>((resolve, reject) => {
+            this.sqliteDatabase.run(
+                `
+            INSERT INTO CustomCommands (command_name, command_text, attachment_path)
+            VALUES (?, ?, ?)`,
+                [commandName, commandText, attachmentPath],
+                (err: Error | null) => {
+                    if (err) {
+                        Logger.log(`SQL Error: ${err.message}`, MessageType.WARNING);
+                        resolve(false);
+                        return;
+                    }
+                    resolve(true);
+                    return;
+                }
+            );
+        });
     }
 
     public getAllKedama() : Promise<object[] | null> {

@@ -68,7 +68,7 @@ export default class Database {
         )`);
 
         this.sqliteDatabase.run(`CREATE TABLE IF NOT EXISTS CustomCommands (
-            command_name TEXT PRIMARY KEY NOT NULL,
+            command_name TEXT NOT NULL,
             command_text TEXT,
             attachment_path TEXT
         )`);
@@ -79,8 +79,9 @@ export default class Database {
         return new Promise<object[] | null>((resolve, reject) => {
             this.sqliteDatabase.all<string>(
                 `
-                SELECT command_name 
-                FROM CustomCommands`,
+                SELECT DISTINCT command_name 
+                FROM CustomCommands
+                ORDER BY rowid ASC, command_name ASC`,
                 (err: Error | null, rows: object[]) => {
                     if (err) {
                         Logger.log(`SQL Error: ${err.message}`, MessageType.WARNING);
@@ -101,7 +102,8 @@ export default class Database {
                 `
                 SELECT command_name, command_text, attachment_path 
                 FROM CustomCommands
-                WHERE command_name = ?`,
+                WHERE command_name = ?
+                ORDER BY rowid ASC`,
                 [commandName],
                 (err: Error | null, rows: unknown[]) => {
                     if (err) {
@@ -114,7 +116,13 @@ export default class Database {
                         return;
                     }
 
-                    let result = rows[0];
+                    let rowN = 0;
+                    if (rows.length > 1) {
+                        rowN = Math.floor(Math.random() * (rows.length));
+                        rowN = (rowN === rows.length) ? rows.length - 1 : rowN;
+                    }
+
+                    let result = rows[rowN];
                     resolve(result as object);
                     return;
                 }

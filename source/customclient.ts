@@ -7,8 +7,8 @@ import fs from "node:fs";
 import path from "node:path";
 
 import { fileURLToPath } from "url";
-import settings from "../settings.json" assert { type: "json" };
-import hmt from "../hmt.json" assert { type: "json" };
+import settings from "../settings.json" with { type: "json" };
+import hmt from "../hmt.json" with { type: "json" };
 import ApccgMessageCommand from "./message_command/apccg_message_command.js";
 import CommandHelp from "./slash_command/command_help.js";
 import ApccgIntervalCommand from "./interval_command/apccg_interval_command.js";

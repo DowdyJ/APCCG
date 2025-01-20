@@ -4,6 +4,7 @@ import ApccgSlashCommand from "./apccg_slash_command.js";
 import { Logger, MessageType } from "../logger.js";
 import {
     AudioPlayer,
+    DiscordGatewayAdapterCreator,
     NoSubscriberBehavior,
     StreamType,
     VoiceConnection,
@@ -186,7 +187,7 @@ export default class CommandRadio extends ApccgSlashCommand {
             this.connection = joinVoiceChannel({
                 channelId: (interaction.member! as GuildMember).voice.channel!.id,
                 guildId: interaction.guild!.id,
-                adapterCreator: interaction.guild!.voiceAdapterCreator,
+                adapterCreator: interaction.guild!.voiceAdapterCreator as any,
             });
 
             this.audioPlayer = new AudioPlayer({

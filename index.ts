@@ -1,6 +1,6 @@
 import discord from 'discord.js'
-import settings from './settings.json' assert { type: "json"}
-import hmt from './hmt.json' assert { type: "json"}
+import settings from './settings.json' with { type: "json"}
+import hmt from './hmt.json' with { type: "json"}
 import { CustomClient } from "./source/customclient.js"
 
 let client = CustomClient.instance();

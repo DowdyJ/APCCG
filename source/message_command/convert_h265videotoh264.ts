@@ -1,4 +1,4 @@
-import discord, { Attachment, Message } from "discord.js";
+import discord, { Attachment, Message, TextChannel } from "discord.js";
 import ffmpeg from "fluent-ffmpeg";
 import ApccgMessageCommand from "./apccg_message_command.js";
 import fs from "fs";
@@ -46,7 +46,7 @@ export default class CommandFixTwitterLinks extends ApccgMessageCommand {
                 (ffmpeg(url)
                     .videoCodec("libx264") as any)
                     .on("end", function () {
-                        message.channel
+                        (message.channel as TextChannel)
                             .send({
                                 content: `From ${message.author.username}:`,
                                 files: [`${output}`],

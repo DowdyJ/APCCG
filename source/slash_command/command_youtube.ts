@@ -1,10 +1,10 @@
 import { CommandInteraction, EmbedBuilder, GuildMember, InteractionType, Message, SlashCommandBuilder } from "discord.js";
 import ApccgSlashCommand from "./apccg_slash_command.js";
 import { Logger, MessageType } from "../logger.js";
-import { AudioPlayer, NoSubscriberBehavior, VoiceConnection, createAudioResource, getVoiceConnection, joinVoiceChannel } from "@discordjs/voice";
+import { AudioPlayer, DiscordGatewayAdapterCreator, NoSubscriberBehavior, VoiceConnection, createAudioResource, getVoiceConnection, joinVoiceChannel } from "@discordjs/voice";
 import ytdl from '@distube/ytdl-core';
 import { google } from 'googleapis';
-import hmt from "../../hmt.json" assert { type: "json" };
+import hmt from "../../hmt.json" with { type: "json" };
 
 
 export default class CommandRadio extends ApccgSlashCommand {
@@ -504,7 +504,7 @@ export default class CommandRadio extends ApccgSlashCommand {
             const connection = joinVoiceChannel({
                 channelId: (interaction.member! as GuildMember).voice.channel!.id,
                 guildId: interaction.guild!.id,
-                adapterCreator: interaction.guild!.voiceAdapterCreator,
+                adapterCreator: interaction.guild!.voiceAdapterCreator as DiscordGatewayAdapterCreator,
             });
 
 

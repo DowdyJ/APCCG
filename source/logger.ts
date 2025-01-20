@@ -1,5 +1,5 @@
 import { Message } from "discord.js";
-import settings from "../settings.json" assert { type: "json" };
+import settings from "../settings.json" with { type: "json" };
 
 export { CustomLogger as Logger };
 

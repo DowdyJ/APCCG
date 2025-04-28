@@ -62,6 +62,20 @@ export default class Database {
             channel_id TEXT PRIMARY KEY NOT NULL
         )`);
 
+        this.sqliteDatabase.run(`CREATE TABLE IF NOT EXISTS RepoastChannels (
+            channel_id TEXT PRIMARY KEY NOT NULL
+        )`);
+
+        this.sqliteDatabase.run(`CREATE TABLE IF NOT EXISTS RepoastForgetMe (
+            message_id TEXT PRIMARY KEY NOT NULL
+        )`);
+
+        this.sqliteDatabase.run(`CREATE TABLE IF NOT EXISTS RepoastMedia (
+            message_id TEXT PRIMARY KEY NOT NULL,
+            channel_id TEXT NOT NULL,
+            message_hash TEXT NOT NULL
+        )`);
+
         this.sqliteDatabase.run(`CREATE TABLE IF NOT EXISTS KedamaFaces (
             id INTEGER PRIMARY KEY,
             face TEXT NOT NULL UNIQUE
@@ -263,6 +277,138 @@ export default class Database {
                 `
                 SELECT channel_id 
                 FROM KSpamRemovalChannels`,
+                (err: Error | null, rows: object[]) => {
+                    if (err) {
+                        Logger.log(`SQL Error: ${err.message}`, MessageType.WARNING);
+                        resolve(null);
+                        return;
+                    }
+
+                    resolve(rows);
+                    return;
+                }
+            );
+        });
+    }
+
+    public addChannelToPoast(channelId: string): Promise<boolean> {
+        Logger.log(`Adding channel to find poasts ${channelId}`);
+        return new Promise<boolean>((resolve, reject) => {
+            this.sqliteDatabase.run(
+                `
+            INSERT INTO RepoastChannels (channel_id)
+            VALUES (?)`,
+                [channelId],
+                (err: Error | null) => {
+                    if (err) {
+                        Logger.log(`SQL Error: ${err.message}`, MessageType.WARNING);
+                        resolve(false);
+                        return;
+                    }
+                    resolve(true);
+                    return;
+                }
+            );
+        });
+    }
+
+    public removeChannelFromPoast(channelId: string): Promise<boolean> {
+        Logger.log(`Removing channel from finding poasts ${channelId}`);
+        return new Promise<boolean>((resolve, reject) => {
+            this.sqliteDatabase.run(
+                `
+            DELETE FROM RepoastChannels
+            WHERE channel_id = ?`,
+                [channelId],
+                (err: Error | null) => {
+                    if (err) {
+                        Logger.log(`SQL Error: ${err.message}`, MessageType.WARNING);
+                        resolve(false);
+                        return;
+                    }
+                    resolve(true);
+                    return;
+                }
+            );
+        });
+    }
+
+    public getAllChannelsToPoast(): Promise<object[] | null> {
+        Logger.log(`Retrieving all channels to find poasts`);
+        return new Promise<object[] | null>((resolve, reject) => {
+            this.sqliteDatabase.all<string>(
+                `
+                SELECT channel_id 
+                FROM RepoastChannels`,
+                (err: Error | null, rows: object[]) => {
+                    if (err) {
+                        Logger.log(`SQL Error: ${err.message}`, MessageType.WARNING);
+                        resolve(null);
+                        return;
+                    }
+
+                    resolve(rows);
+                    return;
+                }
+            );
+        });
+    }
+
+    public forgetMessageFromChannel(messageId: String): Promise<boolean> {
+        Logger.log(`Adding message to be forgotten ${messageId}`);
+        return new Promise<boolean>((resolve, reject) => {
+            this.sqliteDatabase.run(
+                `
+            INSERT INTO RepoastForgetMe (message_id)
+            VALUES (?);
+
+            DELETE FROM RepoastMedia
+            WHERE message_id = ?;
+            `,
+                [messageId, messageId],
+                (err: Error | null) => {
+                    if (err) {
+                        Logger.log(`SQL Error: ${err.message}`, MessageType.WARNING);
+                        resolve(false);
+                        return;
+                    }
+                    resolve(true);
+                    return;
+                }
+            );
+        });
+    }
+
+    public addMediaPoastFromChannel(channelId: String, messageId: String, mediaHash: String): Promise<boolean> {
+        Logger.log(`Adding media to be tracked, m:${messageId},c:${channelId}`);
+        return new Promise<boolean>((resolve, reject) =>{ 
+            this.sqliteDatabase.run(
+                `
+            INSERT INTO RepoastMedia (message_id, channel_id, media_hash)
+            VALUES (?,?,?);
+                `,
+                [messageId, channelId, mediaHash],
+                (err: Error | null) => {
+                    if (err) {
+                        Logger.log(`SQL Error: ${err.message}`, MessageType.WARNING);
+                        resolve(false);
+                        return;
+                    }
+                    resolve(true);
+                    return;
+                }
+            );
+        });
+    }
+
+    public getAllMediaHashFromChannel(channelId: String): Promise<object[] | null> {
+        Logger.log(`Retrieving all media poasts from channel ${channelId}`);
+        return new Promise<object[] | null>((resolve, reject) => {
+            this.sqliteDatabase.all<string>(
+                `
+                SELECT * 
+                FROM RepoastMedia
+                where channel_id = ${channelId}`,
                 (err: Error | null, rows: object[]) => {
                     if (err) {
                         Logger.log(`SQL Error: ${err.message}`, MessageType.WARNING);

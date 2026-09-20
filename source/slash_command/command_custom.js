@@ -135,7 +135,13 @@ export default class CommandCustom extends ApccgSlashCommand {
             const fileExtension = attachment.url.split("/").pop().split("?")[0].split(".").pop();
             fileName = `attachment_${Math.random()}.${fileExtension}`;
             Logger.log(`Downloading file with url: ${attachment.url}`, MessageType.DEBUG);
-            downloadFile(attachment.url, fileName);
+            try {
+                await downloadFile(attachment.url, fileName);
+            } catch (err) {
+                Logger.log(`Failed to download attachment: ${err.message}`, MessageType.WARNING);
+                interaction.reply(`Failed to add command "${commandName}" - could not download attachment`);
+                return false;
+            }
         }
 
         let commandData = { commandName: commandName, commandText: hasText ? commandText : "", attachmentPath: hasAttachment ? fileName : ""};
@@ -159,7 +165,7 @@ export default class CommandCustom extends ApccgSlashCommand {
             return false;
         }
 
-        const success = Database.instance().removeSingleCommand(commandName);
+        const success = await Database.instance().removeSingleCommand(commandName);
 
         if (success) {
             interaction.reply(`Removed command '${commandName}' if it existed.`);

@@ -92,9 +92,57 @@ export default class CommandRadio extends ApccgSlashCommand {
         **/radio remove** [radio name] -> Delete radio entry from list`;
     }
 
-    audioPlayer = null;
-    connection = null;
-    lastStream = null;
+    audioPlayerToChannelMap = {};
+    connectionToChannelMap = {};
+    lastStreamToChannelMap = {};
+
+    getAudioPlayer(interaction) {
+        if (interaction.guildId && interaction.guildId in this.audioPlayerToChannelMap) {
+            return this.audioPlayerToChannelMap[interaction.guildId];
+        }
+        return null;
+    }
+
+    setAudioPlayer(interaction, audioPlayer) {
+        if (interaction.guildId === null) return;
+        if (audioPlayer === null) {
+            delete this.audioPlayerToChannelMap[interaction.guildId];
+            return;
+        }
+        this.audioPlayerToChannelMap[interaction.guildId] = audioPlayer;
+    }
+
+    getConnection(interaction) {
+        if (interaction.guildId && interaction.guildId in this.connectionToChannelMap) {
+            return this.connectionToChannelMap[interaction.guildId];
+        }
+        return null;
+    }
+
+    setConnection(interaction, connection) {
+        if (interaction.guildId === null) return;
+        if (connection === null) {
+            delete this.connectionToChannelMap[interaction.guildId];
+            return;
+        }
+        this.connectionToChannelMap[interaction.guildId] = connection;
+    }
+
+    getLastStream(interaction) {
+        if (interaction.guildId && interaction.guildId in this.lastStreamToChannelMap) {
+            return this.lastStreamToChannelMap[interaction.guildId];
+        }
+        return null;
+    }
+
+    setLastStream(interaction, lastStream) {
+        if (interaction.guildId === null) return;
+        if (lastStream === null) {
+            delete this.lastStreamToChannelMap[interaction.guildId];
+            return;
+        }
+        this.lastStreamToChannelMap[interaction.guildId] = lastStream;
+    }
 
     async listAvailableRadio(interaction) {
         const databaseResult = await Database.instance().getAllRadioStations();
@@ -172,7 +220,7 @@ export default class CommandRadio extends ApccgSlashCommand {
             return false;
         }
 
-        this.lastStream = streamLink;
+        this.setLastStream(interaction, streamLink);
         const resource = createAudioResource(streamLink);
 
         Logger.log(`Playing streamlink: ${streamLink}`, MessageType.DEBUG);
@@ -180,39 +228,42 @@ export default class CommandRadio extends ApccgSlashCommand {
         if (interaction.member.voice.channel !== null) {
             Logger.log(`Joining channel and playing tunes.`, MessageType.DEBUG);
 
-            this.connection = joinVoiceChannel({
+            const connection = joinVoiceChannel({
                 channelId: interaction.member.voice.channel.id,
                 guildId: interaction.guild.id,
                 adapterCreator: interaction.guild.voiceAdapterCreator,
             });
+            this.setConnection(interaction, connection);
 
-            this.audioPlayer = new AudioPlayer({
+            const audioPlayer = new AudioPlayer({
                 behaviors: {
                     noSubscriber: NoSubscriberBehavior.Pause,
                 },
             });
-            this.audioPlayer.on("error", (error) => {
+            this.setAudioPlayer(interaction, audioPlayer);
+
+            audioPlayer.on("error", (error) => {
                 Logger.log(`Audio Error: ${error.message}`, MessageType.ERROR);
             });
 
-            this.audioPlayer.on("stateChange", (oldState, newState) => {
+            audioPlayer.on("stateChange", (oldState, newState) => {
                 Logger.log(
                     `Audio player transitioned from ${oldState.status} to ${newState.status}`,
                     MessageType.DEBUG
                 );
                 if (newState.status === "idle") {
                     Logger.log("Restarting audio stream.", MessageType.DEBUG);
-                    this.attemptToRestartAudio();
+                    this.attemptToRestartAudio(interaction);
                 }
             });
 
-            this.audioPlayer.on("debug", (message) => {
+            audioPlayer.on("debug", (message) => {
                 Logger.log(`Debug message from audio player:`, MessageType.DEBUG);
                 Logger.log(message, MessageType.DEBUG);
             });
 
-            this.connection.subscribe(this.audioPlayer);
-            this.audioPlayer.play(resource);
+            connection.subscribe(audioPlayer);
+            audioPlayer.play(resource);
 
             interaction.reply(`Playing **${streamName}**`);
             return true;
@@ -223,11 +274,12 @@ export default class CommandRadio extends ApccgSlashCommand {
         return false;
     }
 
-    attemptToRestartAudio() {
-        if (this.lastStream == null) return;
+    attemptToRestartAudio(interaction) {
+        const lastStream = this.getLastStream(interaction);
+        if (lastStream == null) return;
 
-        const resource = createAudioResource(this.lastStream);
-        this.audioPlayer?.play(resource);
+        const resource = createAudioResource(lastStream);
+        this.getAudioPlayer(interaction)?.play(resource);
     }
 
     async leaveChannelAndStop(interaction) {

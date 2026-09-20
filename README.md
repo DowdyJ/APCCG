@@ -1,6 +1,6 @@
 # APCCG
 
-This is a simple Discord bot that interfaces with SaltyBet among other utilities. 
+This is a simple Discord bot with a set of Discord server utilities. 
 
 ## Installation
 To use the video conversion feature, you will need to have ffmpeg/ffprobe installed.
@@ -22,11 +22,6 @@ For the bot to run you will need a file called "hmt.json" in the root folder. It
 |----------------------------------------------------------------|----------------------------------------------------------------------------|
 | /help                                                          | Show a help message                                                        |
 | /hello                                                         | Sanity check to check bot responsiveness                                   |
-| /salty sign-in [email] [pass]                                  | Log-in to SaltyBet using your email and password                           |
-| /salty bet [team] [amount]                                     | Place a bet for a team or player.                                          |
-| /salty balance                                                 | Retrieve your current balance                                              |
-| /salty sign-out                                                | Sign-out from SaltyBet (Removes sign-in cookie)                            |
-| /salty status                                                  | Fetch current match details, including current bet amounts and team names. |
 | /docker add [command_name] [docker_command] [(Optional) notes] | Add a "docker run" command                                                 |
 | /docker remove [command_name]                                  | Remove an existing command                                                 |
 | /docker run [command_name]                                     | Run an available command                                                   |

@@ -1,6 +1,5 @@
 import ApccgMessageCommand from "./apccg_message_command.js";
 import { Logger } from "../logger.js";
-import fetch from "node-fetch";
 
 export default class IfunnyMessageCommand extends ApccgMessageCommand {
     pattern = /https:\/\/ifunny\.co.*/;

@@ -1,6 +1,7 @@
-FROM node:18
+FROM node:22
 WORKDIR /app
-COPY package* .
+COPY package*.json .npmrc .
+RUN npm install -g npm@11
 RUN npm install
 RUN apt-get update && apt-get install ffmpeg -y
 COPY . .

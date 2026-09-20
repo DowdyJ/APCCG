@@ -3,6 +3,8 @@
 This is a simple Discord bot with a set of Discord server utilities. 
 
 ## Installation
+Requires Node.js 22.5.0 or later (for the built-in <code>node:sqlite</code> module).
+This repo also pins a <code>min-release-age</code> in <code>.npmrc</code> so <code>npm install</code> refuses freshly-published dependency versions (a defense against supply chain attacks) &mdash; that setting is silently ignored on npm older than 11.10.0, so run <code>npm install -g npm@11</code> first if `npm --version` reports something older.
 To use the video conversion feature, you will need to have ffmpeg/ffprobe installed.
 Otherwise, simply run <code>npm install</code> in the root of the project. Then, to run the bot, run <code>node index.js</code>
 Alternatively, you can use Docker. For that, simply run <code>./build_image.sh</code> and <code>./run_container.sh</code>

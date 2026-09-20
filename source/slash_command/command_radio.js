@@ -4,7 +4,9 @@ import { Logger, MessageType } from "../logger.js";
 import {
     AudioPlayer,
     NoSubscriberBehavior,
+    VoiceConnectionStatus,
     createAudioResource,
+    entersState,
     getVoiceConnection,
     joinVoiceChannel,
 } from "@discordjs/voice";
@@ -220,58 +222,83 @@ export default class CommandRadio extends ApccgSlashCommand {
             return false;
         }
 
+        if (interaction.member.voice.channel === null) {
+            interaction.reply("Where exactly should I play those sick tunes HMMM?");
+            return false;
+        }
+
+        await interaction.deferReply();
+
         this.setLastStream(interaction, streamLink);
         const resource = createAudioResource(streamLink);
 
         Logger.log(`Playing streamlink: ${streamLink}`, MessageType.DEBUG);
+        Logger.log(`Joining channel and playing tunes.`, MessageType.DEBUG);
 
-        if (interaction.member.voice.channel !== null) {
-            Logger.log(`Joining channel and playing tunes.`, MessageType.DEBUG);
+        const connection = joinVoiceChannel({
+            channelId: interaction.member.voice.channel.id,
+            guildId: interaction.guild.id,
+            adapterCreator: interaction.guild.voiceAdapterCreator,
+        });
+        this.setConnection(interaction, connection);
 
-            const connection = joinVoiceChannel({
-                channelId: interaction.member.voice.channel.id,
-                guildId: interaction.guild.id,
-                adapterCreator: interaction.guild.voiceAdapterCreator,
-            });
-            this.setConnection(interaction, connection);
+        connection.on("stateChange", (oldState, newState) => {
+            Logger.log(
+                `Voice connection transitioned from ${oldState.status} to ${newState.status}`,
+                MessageType.DEBUG
+            );
+        });
 
-            const audioPlayer = new AudioPlayer({
-                behaviors: {
-                    noSubscriber: NoSubscriberBehavior.Pause,
-                },
-            });
-            this.setAudioPlayer(interaction, audioPlayer);
+        connection.on("error", (error) => {
+            Logger.log(`Voice connection error: ${error.message}`, MessageType.ERROR);
+        });
 
-            audioPlayer.on("error", (error) => {
-                Logger.log(`Audio Error: ${error.message}`, MessageType.ERROR);
-            });
-
-            audioPlayer.on("stateChange", (oldState, newState) => {
-                Logger.log(
-                    `Audio player transitioned from ${oldState.status} to ${newState.status}`,
-                    MessageType.DEBUG
-                );
-                if (newState.status === "idle") {
-                    Logger.log("Restarting audio stream.", MessageType.DEBUG);
-                    this.attemptToRestartAudio(interaction);
-                }
-            });
-
-            audioPlayer.on("debug", (message) => {
-                Logger.log(`Debug message from audio player:`, MessageType.DEBUG);
-                Logger.log(message, MessageType.DEBUG);
-            });
-
-            connection.subscribe(audioPlayer);
-            audioPlayer.play(resource);
-
-            interaction.reply(`Playing **${streamName}**`);
-            return true;
-        } else {
-            interaction.reply("Where exactly should I play those sick tunes HMMM?");
+        try {
+            await entersState(connection, VoiceConnectionStatus.Ready, 30_000);
+        } catch (err) {
+            Logger.log(`Voice connection never became ready: ${err.message}`, MessageType.ERROR);
+            try {
+                connection.destroy();
+            } catch (destroyErr) {
+                Logger.log(`Error destroying voice connection: ${destroyErr.message}`, MessageType.WARNING);
+            }
+            this.setConnection(interaction, null);
+            await interaction.editReply("Couldn't connect to the voice channel - the connection never became ready.");
+            return false;
         }
 
-        return false;
+        const audioPlayer = new AudioPlayer({
+            behaviors: {
+                noSubscriber: NoSubscriberBehavior.Pause,
+            },
+        });
+        this.setAudioPlayer(interaction, audioPlayer);
+
+        audioPlayer.on("error", (error) => {
+            Logger.log(`Audio Error: ${error.message}`, MessageType.ERROR);
+        });
+
+        audioPlayer.on("stateChange", (oldState, newState) => {
+            Logger.log(
+                `Audio player transitioned from ${oldState.status} to ${newState.status}`,
+                MessageType.DEBUG
+            );
+            if (newState.status === "idle") {
+                Logger.log("Restarting audio stream.", MessageType.DEBUG);
+                this.attemptToRestartAudio(interaction);
+            }
+        });
+
+        audioPlayer.on("debug", (message) => {
+            Logger.log(`Debug message from audio player:`, MessageType.DEBUG);
+            Logger.log(message, MessageType.DEBUG);
+        });
+
+        connection.subscribe(audioPlayer);
+        audioPlayer.play(resource);
+
+        await interaction.editReply(`Playing **${streamName}**`);
+        return true;
     }
 
     attemptToRestartAudio(interaction) {
@@ -291,8 +318,15 @@ export default class CommandRadio extends ApccgSlashCommand {
         const connection = getVoiceConnection(guildId);
 
         if (connection) {
+            try {
+                connection.destroy();
+            } catch (err) {
+                Logger.log(`Error destroying voice connection: ${err.message}`, MessageType.WARNING);
+            }
+            this.setConnection(interaction, null);
+            this.setAudioPlayer(interaction, null);
+            this.setLastStream(interaction, null);
             interaction.reply("My god did that smell good");
-            connection.disconnect();
         } else {
             interaction.reply("LET ME IN");
         }

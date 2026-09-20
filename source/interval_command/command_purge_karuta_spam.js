@@ -42,7 +42,7 @@ export default class CommandPurgeKarutaSpam extends ApccgIntervalCommand {
 
         // Filters down command type so that getSubcommand() will work
         if (interaction.type !== InteractionType.ApplicationCommand || !interaction.isChatInputCommand())
-            return new Promise(() => false);
+            return Promise.resolve(false);
 
         let subcommandName = interaction.options.getSubcommand();
         switch (subcommandName) {
@@ -56,7 +56,7 @@ export default class CommandPurgeKarutaSpam extends ApccgIntervalCommand {
                 Logger.log("Invalid subcommand run on /kpurge", MessageType.ERROR);
         }
 
-        return new Promise(() => false);
+        return Promise.resolve(false);
     }
 
     getInterval() {
@@ -86,18 +86,20 @@ export default class CommandPurgeKarutaSpam extends ApccgIntervalCommand {
                                     }
                                 }).catch((err)=>{ /*ᕙ꒰  ˙꒳​˙   ꒱ᕗ */ });
                             }
+                        }).catch((err) => {
+                            Logger.log(`Could not fetch messages for channel ${channelIdRow.channel_id}: ${err.message}`, MessageType.WARNING);
                         });
                     }).catch((err) => {});
                 }
 
-                return new Promise(() => true);
+                return Promise.resolve(true);
             });
         }
         catch (err) {
             Logger.log("Error encountered when deleting kspam")
         }
 
-        return new Promise(() => false);
+        return Promise.resolve(false);
     }
 
     disabled() {
@@ -117,10 +119,10 @@ export default class CommandPurgeKarutaSpam extends ApccgIntervalCommand {
 
     shouldRepeatNow() {
         if (Date.now() / 1000 - this.lastRepeatEpoch < this.repeatIntervalSeconds) {
-            return new Promise(() => false);
+            return Promise.resolve(false);
         }
 
-        return new Promise(() => true);
+        return Promise.resolve(true);
     }
 
     async shouldDeleteMessage(message) {
@@ -149,7 +151,7 @@ export default class CommandPurgeKarutaSpam extends ApccgIntervalCommand {
     async addChannelToDatabase(interaction) {
         const channelId = interaction.channel?.id;
         if (channelId === null || channelId === undefined) {
-            return new Promise(() => false);
+            return false;
         }
 
         const success = await Database.instance().addChannelToKPurge(channelId);
@@ -161,13 +163,13 @@ export default class CommandPurgeKarutaSpam extends ApccgIntervalCommand {
             interaction.reply("He's already dead boss");
         }
 
-        return new Promise((resolve) => {success});
+        return success;
     }
 
     async deleteMessagesAround(interaction) {
         if (interaction.channel === null) {
             interaction.reply("Where ARE you?");
-            return new Promise((resolve) => {false});
+            return false;
         }
 
         const aroundMessageId = interaction.options.get("messageid")?.value;
@@ -180,17 +182,19 @@ export default class CommandPurgeKarutaSpam extends ApccgIntervalCommand {
                     }
                 }).catch((err)=>{ /*ᕙ꒰  ˙꒳​˙   ꒱ᕗ */ });
             }
+        }).catch((err) => {
+            Logger.log(`Could not fetch messages around ${aroundMessageId}: ${err.message}`, MessageType.WARNING);
         });
 
         interaction.reply(`Attempting to delete messages around ${aroundMessageId}`).then((interactionResponse) => {setTimeout(()=>{interactionResponse.delete()}, 5000)});
 
-        return new Promise((resolve) => {true});
+        return true;
     }
 
     async removeChannelFromDatabase(interaction) {
         const channelId = interaction.channel?.id;
         if (channelId === null || channelId === undefined) {
-            return new Promise(() => false);
+            return false;
         }
 
         const success = await Database.instance().removeChannelToKPurge(channelId);
@@ -202,6 +206,6 @@ export default class CommandPurgeKarutaSpam extends ApccgIntervalCommand {
             interaction.reply("Wow, that went worse than I thought possible");
         }
 
-        return new Promise((resolve) => {success});
+        return success;
     }
 }

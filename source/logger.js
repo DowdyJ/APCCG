@@ -13,15 +13,15 @@ class CustomLogger {
         switch (type) {
             case MessageType.DEBUG:
                 if (!settings.DEBUG) break;
-                messageString = "e[35m[DEBUG]e[0m " + messageString;
+                messageString = "\x1b[35m[DEBUG]\x1b[0m " + messageString;
                 console.log(messageString);
                 break;
             case MessageType.ERROR:
-                messageString = "e[31m[ERROR]e[0m " + messageString;
+                messageString = "\x1b[31m[ERROR]\x1b[0m " + messageString;
                 console.log(messageString);
                 break;
             case MessageType.WARNING:
-                messageString = "e[33m[WARN]e[0m  " + messageString;
+                messageString = "\x1b[33m[WARN]\x1b[0m  " + messageString;
                 console.log(messageString);
                 break;
             case MessageType.LOG:

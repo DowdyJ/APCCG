@@ -1,4 +1,13 @@
 import { CustomClient } from "./source/customclient.js"
+import { Logger, MessageType } from "./source/logger.js"
+
+process.on('unhandledRejection', (err) => {
+  Logger.log(`Unhandled rejection (ignored to keep the bot alive): ${err?.stack ?? err}`, MessageType.ERROR);
+});
+
+process.on('uncaughtException', (err) => {
+  Logger.log(`Uncaught exception (ignored to keep the bot alive): ${err?.stack ?? err}`, MessageType.ERROR);
+});
 
 let client = CustomClient.instance();
 

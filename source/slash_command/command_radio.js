@@ -11,6 +11,7 @@ import {
     joinVoiceChannel,
 } from "@discordjs/voice";
 import Database from "../database.js";
+import settings from "../../settings.json" with { type: "json" };
 
 export default class CommandRadio extends ApccgSlashCommand {
     disabled() {
@@ -239,6 +240,7 @@ export default class CommandRadio extends ApccgSlashCommand {
             channelId: interaction.member.voice.channel.id,
             guildId: interaction.guild.id,
             adapterCreator: interaction.guild.voiceAdapterCreator,
+            debug: true,
         });
         this.setConnection(interaction, connection);
 
@@ -247,10 +249,22 @@ export default class CommandRadio extends ApccgSlashCommand {
                 `Voice connection transitioned from ${oldState.status} to ${newState.status}`,
                 MessageType.DEBUG
             );
+
+            // @discordjs/voice never surfaces the raw websocket close code through its own
+            // debug/error events, so we tap the internal networking object directly to get it.
+            if (newState.status === "connecting" && newState.networking) {
+                newState.networking.on("close", (code) => {
+                    Logger.log(`Voice networking websocket closed with code ${code}`, MessageType.WARNING);
+                });
+            }
         });
 
         connection.on("error", (error) => {
             Logger.log(`Voice connection error: ${error.message}`, MessageType.ERROR);
+        });
+
+        connection.on("debug", (message) => {
+            Logger.log(`Voice connection debug: ${message}`, MessageType.VERBOSE);
         });
 
         try {
@@ -290,12 +304,31 @@ export default class CommandRadio extends ApccgSlashCommand {
         });
 
         audioPlayer.on("debug", (message) => {
-            Logger.log(`Debug message from audio player:`, MessageType.DEBUG);
-            Logger.log(message, MessageType.DEBUG);
+            Logger.log(`Debug message from audio player:`, MessageType.VERBOSE);
+            Logger.log(message, MessageType.VERBOSE);
         });
 
         connection.subscribe(audioPlayer);
         audioPlayer.play(resource);
+
+        // Temporary diagnostic: DAVE's MLS handshake finishes asynchronously after the connection
+        // reaches Ready, so this checks whether the encryption session actually becomes usable
+        // around the time we start sending audio, rather than assuming "Transition executed" means it did.
+        // Only runs at all when VERBOSE_LOGGING is on, since it's otherwise a pointless timer.
+        if (settings.VERBOSE_LOGGING) {
+            let daveChecks = 0;
+            const daveCheckInterval = setInterval(() => {
+                daveChecks++;
+                const dave = connection.state?.dave;
+                Logger.log(
+                    `DAVE check ${daveChecks}: connection status=${connection.state?.status}, dave.session.ready=${dave?.session?.ready}, protocolVersion=${dave?.protocolVersion}`,
+                    MessageType.VERBOSE
+                );
+                if (daveChecks >= 10 || connection.state?.status !== VoiceConnectionStatus.Ready) {
+                    clearInterval(daveCheckInterval);
+                }
+            }, 1000);
+        }
 
         await interaction.editReply(`Playing **${streamName}**`);
         return true;

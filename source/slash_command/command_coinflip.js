@@ -31,7 +31,7 @@ export default class CommandHello extends ApccgSlashCommand {
             await interaction.reply("ᴵ ᵐᵘˢᵗ ˢᵃʸ ⁿᵒ");
             return false;
         }
-        interaction.deferReply();
+        await interaction.deferReply();
 
 
         let headsCount = 0;

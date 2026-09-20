@@ -1,5 +1,5 @@
 import discord from "discord.js";
-import { REST, Routes, SlashCommandBuilder, GatewayIntentBits } from "discord.js";
+import { REST, Routes } from "discord.js";
 
 import ApccgSlashCommand from "./slash_command/apccg_slash_command.js";
 
@@ -18,12 +18,12 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 export class CustomClient extends discord.Client {
-    private constructor(options: discord.ClientOptions, token: string, applicationID: string) {
+    constructor(options, token, applicationID) {
         super(options);
         this._token = token;
         this._applicationID = applicationID;
         this._rest = new REST({ version: "10" }).setToken(this._token);
-        
+
         this.initializeCommands().then(() => {
             for (const intervalCommand of this.intervalCommands) {
                 setTimeout(() => {
@@ -36,28 +36,28 @@ export class CustomClient extends discord.Client {
                         catch (err) {
                             Logger.log(err, MessageType.LOG);
                         }
-                    }, 
+                    },
                     intervalCommand.getInterval() * 1000);
                 }, 10 * 1000);
             }
         })
-        
-        this.on("messageCreate", (message: discord.Message) => {
+
+        this.on("messageCreate", (message) => {
             try {
                 this.handleMessages(message);
             }
             catch (err) {}
         });
-    
+
         return;
     }
 
-    private static client: CustomClient | null = null;
+    static client = null;
 
-    public static instance(): CustomClient {
+    static instance() {
         if (CustomClient.client === null) {
-            let TOKEN: string;
-            let ApplicationID: string;
+            let TOKEN;
+            let ApplicationID;
 
             if (settings.USE_ALT_BOT) {
                 ApplicationID = hmt.ALT_BOT_APPLICATION_ID;
@@ -88,20 +88,16 @@ export class CustomClient extends discord.Client {
         return CustomClient.client;
     }
 
-    public async logInWrapper(): Promise<void> {
+    async logInWrapper() {
         await this.login(this._token);
     }
 
-    private _token: string;
-    private _applicationID: string;
-    private _rest: REST;
+    slashCommands = [];
+    messageCommands = [];
+    intervalCommands = [];
 
-    public slashCommands: ApccgSlashCommand[] = [];
-    public messageCommands: ApccgMessageCommand[] = [];
-    public intervalCommands: ApccgIntervalCommand[] = [];
-
-    public async processCommandsAsync(interaction: discord.Interaction): Promise<boolean> {
-        let returnValue: boolean = false;
+    async processCommandsAsync(interaction) {
+        let returnValue = false;
         if (!interaction.isChatInputCommand()) return returnValue;
 
         for (const c of this.slashCommands) {
@@ -121,7 +117,7 @@ export class CustomClient extends discord.Client {
         return returnValue;
     }
 
-    private async handleMessages(message: discord.Message) {
+    async handleMessages(message) {
         if (message.author.bot) return;
 
         for (const messageCommand of this.messageCommands) {
@@ -131,19 +127,19 @@ export class CustomClient extends discord.Client {
         }
     }
 
-    private async getCommands(): Promise<void> {
+    async getCommands() {
         await this.loadSlashCommands();
         await this.loadMessageCommands();
         await this.loadIntervalCommands();
         this.initializeHelpCommand();
     }
 
-    private initializeHelpCommand() {
-        let helpCommand = this.slashCommands.filter((command) => command instanceof CommandHelp)[0] as CommandHelp;
+    initializeHelpCommand() {
+        let helpCommand = this.slashCommands.filter((command) => command instanceof CommandHelp)[0];
         helpCommand.setRegisteredCommands(this.slashCommands, this.messageCommands, this.intervalCommands);
     }
 
-    private async loadIntervalCommands(): Promise<void> {
+    async loadIntervalCommands() {
         console.log("Started getting interval commands...");
 
         const commandsBasePath = path.join(__dirname, "interval_command");
@@ -171,7 +167,7 @@ export class CustomClient extends discord.Client {
 
     }
 
-    private async loadMessageCommands(): Promise<void> {
+    async loadMessageCommands() {
         console.log("Started getting message commands...");
 
         const commandsBasePath = path.join(__dirname, "message_command");
@@ -198,7 +194,7 @@ export class CustomClient extends discord.Client {
         console.log("Finished getting message commands.");
     }
 
-    private async loadSlashCommands(): Promise<void> {
+    async loadSlashCommands() {
         console.log("Started getting slash commands...");
 
         const commandsBasePath = path.join(__dirname, "slash_command");
@@ -225,8 +221,8 @@ export class CustomClient extends discord.Client {
         console.log("Finished getting slash commands.");
     }
 
-    private getSlashCommandBuilders(): SlashCommandBuilder[] {
-        let commands: SlashCommandBuilder[] = [];
+    getSlashCommandBuilders() {
+        let commands = [];
 
         for (const command of this.slashCommands) {
             if (!command.disabled()) {
@@ -245,7 +241,7 @@ export class CustomClient extends discord.Client {
         return commands;
     }
 
-    private async initializeCommands(): Promise<void> {
+    async initializeCommands() {
         await this.getCommands();
         try {
             if (!settings.REGISTER_COMANDS) return;

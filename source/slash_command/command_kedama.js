@@ -1,15 +1,14 @@
-import { CommandInteraction, InteractionType, SlashCommandBuilder } from "discord.js";
-import discord from "discord.js";
+import { InteractionType, SlashCommandBuilder } from "discord.js";
 import ApccgSlashCommand from "./apccg_slash_command.js";
 import { Logger, MessageType } from "../logger.js";
 import Database from "../database.js";
 
 export default class CommandHello extends ApccgSlashCommand {
-    public override disabled(): boolean {
+    disabled() {
         return false;
     }
 
-    public override commandData(): any {
+    commandData() {
         return new SlashCommandBuilder().setName("kedama").setDescription("Use a random kaomoji face")
         .addSubcommand((subcommand) =>
             subcommand
@@ -29,13 +28,13 @@ export default class CommandHello extends ApccgSlashCommand {
         );
     }
 
-    public override async execute(args: any[]): Promise<boolean> {
-        const interaction = args[0] as discord.CommandInteraction;
+    async execute(args) {
+        const interaction = args[0];
 
         // Filters down command type so that getSubcommand() will work
         if (interaction.type !== InteractionType.ApplicationCommand || !interaction.isChatInputCommand()) return false;
 
-        let subcommandName: string = interaction.options.getSubcommand();
+        let subcommandName = interaction.options.getSubcommand();
 
         switch (subcommandName) {
             case "add":
@@ -51,20 +50,20 @@ export default class CommandHello extends ApccgSlashCommand {
         return false;
     }
 
-    public override getTitle(): string {
+    getTitle() {
         return "Kedama";
     }
 
-    public override getDescription(): string {
+    getDescription() {
         return `**/kedama add** [face] -> Add face to dictionary
         **/kedama roll** -> Get a random face
         **/kedama list** -> Print a list of all registered emojis
         `;
     }
 
-    private async addKaomojiToDatabase(interaction: CommandInteraction): Promise<boolean> {
+    async addKaomojiToDatabase(interaction) {
         const kaomoji = interaction.options.get("kaomoji")?.value;
-        
+
         if (typeof kaomoji !== "string") return false;
 
         let success = await Database.instance().addKedama(kaomoji);
@@ -75,7 +74,7 @@ export default class CommandHello extends ApccgSlashCommand {
         return success;
     }
 
-    private async listAllKaomoji(interaction: CommandInteraction): Promise<boolean> {
+    async listAllKaomoji(interaction) {
         const databaseResult = await Database.instance().getAllKedama();
 
         if (databaseResult == null) {
@@ -86,20 +85,20 @@ export default class CommandHello extends ApccgSlashCommand {
         let kedamaFaces = "";
 
         for (const obj of databaseResult) {
-            kedamaFaces += (obj as any).face + "\n";
+            kedamaFaces += obj.face + "\n";
         }
 
         if (kedamaFaces === "") {
             kedamaFaces = "-";
         }
-        
+
         interaction.reply(">>>>>>>>>>>>>>>>>>>>>>>>>>>>>");
-        interaction.channel!.send(`\`\`\`\n${kedamaFaces}\n\`\`\``);
-        interaction.channel!.send("<<<<<<<<<<<<<<<<<<<<<<<<<<<<<")
+        interaction.channel.send(`\`\`\`\n${kedamaFaces}\n\`\`\``);
+        interaction.channel.send("<<<<<<<<<<<<<<<<<<<<<<<<<<<<<")
         return true;
     }
 
-    private async getRandomKaomoji(interaction : CommandInteraction) : Promise<boolean> {
+    async getRandomKaomoji(interaction) {
         const databaseResult = await Database.instance().getAllKedama();
 
         if (databaseResult == null) {
@@ -109,7 +108,7 @@ export default class CommandHello extends ApccgSlashCommand {
 
         let randomIndex = Math.floor(Math.random() * (databaseResult.length));
 
-        interaction.reply((databaseResult[randomIndex] as any).face as string);
+        interaction.reply(databaseResult[randomIndex].face);
         return true;
     }
 }

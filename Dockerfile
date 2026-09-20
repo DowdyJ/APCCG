@@ -4,7 +4,7 @@ COPY package* .
 RUN npm install
 RUN apt-get update && apt-get install ffmpeg -y
 COPY . .
-RUN --mount=type=secret,id=hmt ln -s /run/secrets/hmt /app/hmt.json && make
+RUN --mount=type=secret,id=hmt ln -s /run/secrets/hmt /app/hmt.json
 RUN rm hmt.json
 
 # Add Docker's official GPG key:

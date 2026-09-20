@@ -2,18 +2,18 @@ import { CustomClient } from "../customclient.js";
 import Database from "../database.js";
 import { Logger, MessageType } from "../logger.js";
 import ApccgIntervalCommand from "./apccg_interval_command.js";
-import discord, { Channel, CommandInteraction, InteractionType, Message, SlashCommandBuilder, TextChannel, User, channelLink } from "discord.js"; 
+import { InteractionType, SlashCommandBuilder } from "discord.js";
 
 
 export default class CommandPurgeKarutaSpam extends ApccgIntervalCommand {
-    lastRepeatEpoch : number = 0;
-    repeatIntervalSeconds : number = 60;
-    minMessageAgeToDeleteSeconds : number = 300;
+    lastRepeatEpoch = 0;
+    repeatIntervalSeconds = 60;
+    minMessageAgeToDeleteSeconds = 300;
     // must be less than or equal to 100
-    messagesToLookBackOnLimit : number = 100;
-    currentlyDisabled : boolean = false;
+    messagesToLookBackOnLimit = 100;
+    currentlyDisabled = false;
 
-    commandData(): any {
+    commandData() {
         return new SlashCommandBuilder()
             .setName("kpurge")
             .setDescription("Control the auto-pruning of messages from and invoking Karuta")
@@ -37,14 +37,14 @@ export default class CommandPurgeKarutaSpam extends ApccgIntervalCommand {
         );
     }
 
-    execute(args: any[]): Promise<boolean> {
-        const interaction = args[0] as discord.CommandInteraction;
+    execute(args) {
+        const interaction = args[0];
 
         // Filters down command type so that getSubcommand() will work
-        if (interaction.type !== InteractionType.ApplicationCommand || !interaction.isChatInputCommand()) 
-            return new Promise<boolean> (() => false);
+        if (interaction.type !== InteractionType.ApplicationCommand || !interaction.isChatInputCommand())
+            return new Promise(() => false);
 
-        let subcommandName: string = interaction.options.getSubcommand();
+        let subcommandName = interaction.options.getSubcommand();
         switch (subcommandName) {
             case "register":
                 return this.addChannelToDatabase(interaction);
@@ -56,14 +56,14 @@ export default class CommandPurgeKarutaSpam extends ApccgIntervalCommand {
                 Logger.log("Invalid subcommand run on /kpurge", MessageType.ERROR);
         }
 
-        return new Promise<boolean> (() => false);
+        return new Promise(() => false);
     }
 
-    getInterval(): number {
+    getInterval() {
         return this.repeatIntervalSeconds;
     }
 
-    executeInterval(): Promise<boolean> {
+    executeInterval() {
         this.lastRepeatEpoch = Date.now() / 1000;
 
         try {
@@ -73,57 +73,57 @@ export default class CommandPurgeKarutaSpam extends ApccgIntervalCommand {
                 }
 
                 for (const channelIdRow of registeredChannels) {
-                    CustomClient.instance().channels.fetch((channelIdRow as any).channel_id).then((channel) => {
+                    CustomClient.instance().channels.fetch(channelIdRow.channel_id).then((channel) => {
                         if (channel === null || !channel.isTextBased()) {
                             return;
                         }
-    
+
                         channel.messages.fetch({ limit: this.messagesToLookBackOnLimit, cache: false}).then((messages) => {
                             for (const message of messages.values()) {
                                 this.shouldDeleteMessage(message).then(shouldDelete => {
                                     if (shouldDelete) {
                                         message.delete().catch((err)=>{ /*✍️ ( ῟ᾥ῏ )✍️*/ });
                                     }
-                                }).catch((err)=>{ /*ᕙ꒰  ˙꒳​˙   ꒱ᕗ */ }); 
+                                }).catch((err)=>{ /*ᕙ꒰  ˙꒳​˙   ꒱ᕗ */ });
                             }
                         });
                     }).catch((err) => {});
                 }
-    
-                return new Promise<boolean>(() => true);
+
+                return new Promise(() => true);
             });
         }
         catch (err) {
             Logger.log("Error encountered when deleting kspam")
         }
 
-        return new Promise<boolean>(() => false);
+        return new Promise(() => false);
     }
 
-    disabled(): boolean {
+    disabled() {
         return this.currentlyDisabled;
     }
 
-    getTitle(): string {
+    getTitle() {
         return "Wipe KSpam";
     }
 
-    getDescription(): string {
+    getDescription() {
         return `**/register** -> Register channel to be purged
         **/unregister** -> Unregister channel from the purge list
         **/force_delete** -> Delete messages around a given message id
         Triggers every ${this.repeatIntervalSeconds} seconds. Deletes all messages invoking karuta or from karuta that are older than ${this.minMessageAgeToDeleteSeconds} seconds`;
     }
 
-    shouldRepeatNow(): Promise<boolean> {
+    shouldRepeatNow() {
         if (Date.now() / 1000 - this.lastRepeatEpoch < this.repeatIntervalSeconds) {
-            return new Promise<boolean>(() => false);
+            return new Promise(() => false);
         }
-        
-        return new Promise<boolean>(() => true);
+
+        return new Promise(() => true);
     }
 
-    private async shouldDeleteMessage(message: Message) {
+    async shouldDeleteMessage(message) {
         const karutaId = '646937666251915264';
         const mantaroId = '213466096718708737';
 
@@ -134,10 +134,10 @@ export default class CommandPurgeKarutaSpam extends ApccgIntervalCommand {
         if (message.author.id === karutaId) {
             return true;
         }
-        
+
         const messageContent = message.cleanContent;
         /* Purgable karuta text commands from users */
-        if ((messageContent.startsWith('k') || messageContent.startsWith('K')) && messageContent.length < 30) { 
+        if ((messageContent.startsWith('k') || messageContent.startsWith('K')) && messageContent.length < 30) {
             return true;
         }
 
@@ -146,12 +146,12 @@ export default class CommandPurgeKarutaSpam extends ApccgIntervalCommand {
         }
     }
 
-    private async addChannelToDatabase(interaction: CommandInteraction): Promise<boolean> {
+    async addChannelToDatabase(interaction) {
         const channelId = interaction.channel?.id;
         if (channelId === null || channelId === undefined) {
-            return new Promise<boolean> (()=>false);
+            return new Promise(() => false);
         }
-        
+
         const success = await Database.instance().addChannelToKPurge(channelId);
 
         if (success) {
@@ -161,16 +161,16 @@ export default class CommandPurgeKarutaSpam extends ApccgIntervalCommand {
             interaction.reply("He's already dead boss");
         }
 
-        return new Promise<boolean>(()=>{success});
+        return new Promise((resolve) => {success});
     }
 
-    private async deleteMessagesAround(interaction: CommandInteraction): Promise<boolean> {
+    async deleteMessagesAround(interaction) {
         if (interaction.channel === null) {
             interaction.reply("Where ARE you?");
-            return new Promise<boolean>(()=>{false});
+            return new Promise((resolve) => {false});
         }
 
-        const aroundMessageId = interaction.options.get("messageid")?.value as string;
+        const aroundMessageId = interaction.options.get("messageid")?.value;
 
         interaction.channel.messages.fetch({ limit: this.messagesToLookBackOnLimit, around: aroundMessageId, cache: false}).then((messages) => {
             for (const message of messages.values()) {
@@ -178,19 +178,19 @@ export default class CommandPurgeKarutaSpam extends ApccgIntervalCommand {
                     if (shouldDelete) {
                         message.delete().catch((err)=>{ /*✍️ ( ῟ᾥ῏ )✍️*/ });
                     }
-                }).catch((err)=>{ /*ᕙ꒰  ˙꒳​˙   ꒱ᕗ */ }); 
+                }).catch((err)=>{ /*ᕙ꒰  ˙꒳​˙   ꒱ᕗ */ });
             }
         });
 
         interaction.reply(`Attempting to delete messages around ${aroundMessageId}`).then((interactionResponse) => {setTimeout(()=>{interactionResponse.delete()}, 5000)});
 
-        return new Promise<boolean>(()=>{true});
+        return new Promise((resolve) => {true});
     }
 
-    private async removeChannelFromDatabase(interaction: CommandInteraction): Promise<boolean> {
+    async removeChannelFromDatabase(interaction) {
         const channelId = interaction.channel?.id;
         if (channelId === null || channelId === undefined) {
-            return new Promise<boolean> (() => false);
+            return new Promise(() => false);
         }
 
         const success = await Database.instance().removeChannelToKPurge(channelId);
@@ -202,6 +202,6 @@ export default class CommandPurgeKarutaSpam extends ApccgIntervalCommand {
             interaction.reply("Wow, that went worse than I thought possible");
         }
 
-        return new Promise<boolean>(()=>{success});
+        return new Promise((resolve) => {success});
     }
 }

@@ -1,24 +1,22 @@
-import { CommandInteraction, EmbedBuilder, SlashCommandBuilder } from "discord.js";
+import { EmbedBuilder, SlashCommandBuilder } from "discord.js";
 import ApccgSlashCommand from "./apccg_slash_command.js";
-import ApccgMessageCommand from "../message_command/apccg_message_command.js";
 import { Logger } from "../logger.js";
-import ApccgIntervalCommand from "../interval_command/apccg_interval_command.js";
 
 export default class CommandHelp extends ApccgSlashCommand {
-    private registeredSlashCommands: ApccgSlashCommand[] = [];
-    private registeredMessageCommands: ApccgMessageCommand[] = [];
-    private registeredIntervalCommands: ApccgIntervalCommand[] =[];
+    registeredSlashCommands = [];
+    registeredMessageCommands = [];
+    registeredIntervalCommands = [];
 
-    public override disabled(): boolean {
+    disabled() {
         return false;
     }
 
-    public override commandData(): SlashCommandBuilder {
+    commandData() {
         return new SlashCommandBuilder().setName("help").setDescription("see a list of commands");
     }
 
-    public override async execute(args: any[]): Promise<boolean> {
-        let interaction = args[0] as CommandInteraction;
+    async execute(args) {
+        let interaction = args[0];
 
         let helpEmbed = new EmbedBuilder();
         helpEmbed.setColor(0xffffff).setDescription("Available commands").setTitle("APCCG Help");
@@ -31,7 +29,7 @@ export default class CommandHelp extends ApccgSlashCommand {
                     inline: false,
                 });
             } catch (error) {
-                Logger.log((error as Error).message);
+                Logger.log(error.message);
             }
         }
 
@@ -43,7 +41,7 @@ export default class CommandHelp extends ApccgSlashCommand {
                     inline: false,
                 });
             } catch (error) {
-                Logger.log((error as Error).message);
+                Logger.log(error.message);
             }
         }
 
@@ -55,7 +53,7 @@ export default class CommandHelp extends ApccgSlashCommand {
                     inline: false,
                 });
             } catch (error) {
-                Logger.log((error as Error).message);
+                Logger.log(error.message);
             }
         }
 
@@ -64,19 +62,15 @@ export default class CommandHelp extends ApccgSlashCommand {
         return true;
     }
 
-    public override getTitle(): string {
+    getTitle() {
         return "Help";
     }
 
-    public override getDescription(): string {
+    getDescription() {
         return `**/help** -> See this message`;
     }
 
-    public setRegisteredCommands(
-        registeredSlashCommands: ApccgSlashCommand[],
-        registeredMessageCommands: ApccgMessageCommand[],
-        registeredIntervalCommands: ApccgIntervalCommand[]
-    ) {
+    setRegisteredCommands(registeredSlashCommands, registeredMessageCommands, registeredIntervalCommands) {
         this.registeredMessageCommands = registeredMessageCommands;
         this.registeredSlashCommands = registeredSlashCommands;
         this.registeredIntervalCommands = registeredIntervalCommands;

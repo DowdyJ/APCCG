@@ -1,11 +1,15 @@
-import { Message } from "discord.js";
 import settings from "../settings.json" with { type: "json" };
 
-export { CustomLogger as Logger };
+export const MessageType = Object.freeze({
+    LOG: 0,
+    WARNING: 1,
+    ERROR: 2,
+    DEBUG: 3,
+});
 
 class CustomLogger {
-    public static log(message: any, type: MessageType = MessageType.LOG): void {
-        let messageString: string = message as string;
+    static log(message, type = MessageType.LOG) {
+        let messageString = message;
         switch (type) {
             case MessageType.DEBUG:
                 if (!settings.DEBUG) break;
@@ -29,9 +33,4 @@ class CustomLogger {
     }
 }
 
-export enum MessageType {
-    LOG,
-    WARNING,
-    ERROR,
-    DEBUG,
-}
+export { CustomLogger as Logger };

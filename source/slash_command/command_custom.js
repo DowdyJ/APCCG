@@ -1,20 +1,18 @@
-import { CommandInteraction, InteractionType, Message, MessagePayload, SlashCommandBuilder, range } from "discord.js";
-import discord from "discord.js";
+import { InteractionType, SlashCommandBuilder } from "discord.js";
 import ApccgSlashCommand from "./apccg_slash_command.js";
 import { Logger, MessageType } from "../logger.js";
 import fs from "fs";
-import { mkdir } from "fs/promises";
 import { Readable } from 'stream';
 import { finished } from 'stream/promises';
 import path from "path";
 import Database from "../database.js";
 
 export default class CommandCustom extends ApccgSlashCommand {
-    public override disabled(): boolean {
+    disabled() {
         return false;
     }
 
-    public override commandData(): any {
+    commandData() {
         return new SlashCommandBuilder().setName("custom").setDescription("interact with custom commands")
             .addSubcommand(
                 (input) => input
@@ -66,13 +64,13 @@ export default class CommandCustom extends ApccgSlashCommand {
 
     }
 
-    public override async execute(args: any[]): Promise<boolean> {
-        const interaction = args[0] as discord.CommandInteraction;
+    async execute(args) {
+        const interaction = args[0];
 
         // Filters down command type so that getSubcommand() will work
-        if (interaction.type !== InteractionType.ApplicationCommand || !interaction.isChatInputCommand()) return false;        
+        if (interaction.type !== InteractionType.ApplicationCommand || !interaction.isChatInputCommand()) return false;
 
-        const subcommandName: string = interaction.options.getSubcommand();
+        const subcommandName = interaction.options.getSubcommand();
 
         switch (subcommandName) {
             case "add":
@@ -90,11 +88,11 @@ export default class CommandCustom extends ApccgSlashCommand {
         return false;
     }
 
-    public override getTitle(): string {
+    getTitle() {
         return "Custom";
     }
 
-    public override getDescription(): string {
+    getDescription() {
         return `**/custom invoke** [command name] -> Use an existing custom command
         **/custom add** [command name] [response]-> Add a new command
         **/custom list** -> List all registered command names
@@ -102,15 +100,15 @@ export default class CommandCustom extends ApccgSlashCommand {
         `;
     }
 
-    private async addNewCommand(interaction) : Promise<boolean> {
+    async addNewCommand(interaction) {
         const downloadFile = (async (url, fileName) => {
             const res = await fetch(url);
             const destination = path.resolve("./data/attachments", fileName);
             const fileStream = fs.createWriteStream(destination, { flags: 'wx' });
-            await finished(Readable.fromWeb(res.body as any).pipe(fileStream as any));
+            await finished(Readable.fromWeb(res.body).pipe(fileStream));
         });
 
-        const addCommandToDatabase = (async (commandData : CommandData) => {
+        const addCommandToDatabase = (async (commandData) => {
             if (commandData == null || commandData.commandName == null) {
                 return false;
             }
@@ -123,7 +121,7 @@ export default class CommandCustom extends ApccgSlashCommand {
         const commandText = interaction.options.getString("command_text");
 
         Logger.log(`Command ${commandName} with text: ${commandText}`, MessageType.DEBUG);
-        
+
         let hasText = commandText != null;
         let hasAttachment = attachment != null;
 
@@ -132,7 +130,7 @@ export default class CommandCustom extends ApccgSlashCommand {
             return false;
         }
 
-        let fileName : string;
+        let fileName;
         if (hasAttachment) {
             const fileExtension = attachment.url.split("/").pop().split("?")[0].split(".").pop();
             fileName = `attachment_${Math.random()}.${fileExtension}`;
@@ -140,7 +138,7 @@ export default class CommandCustom extends ApccgSlashCommand {
             downloadFile(attachment.url, fileName);
         }
 
-        let commandData : CommandData = { commandName: commandName, commandText: hasText ? commandText : "", attachmentPath: hasAttachment ? fileName : ""};
+        let commandData = { commandName: commandName, commandText: hasText ? commandText : "", attachmentPath: hasAttachment ? fileName : ""};
         let success = await addCommandToDatabase(commandData);
 
         if (success) {
@@ -153,7 +151,7 @@ export default class CommandCustom extends ApccgSlashCommand {
         return success;
     }
 
-    private async removeCommand(interaction) : Promise<boolean> {
+    async removeCommand(interaction) {
         const commandName = interaction.options.getString("command_name");
 
         if (commandName == null || commandName == "") {
@@ -169,14 +167,14 @@ export default class CommandCustom extends ApccgSlashCommand {
         else {
             interaction.reply(`Failed to remove command ${commandName}.`);
         }
-        
+
         return success;
     }
 
-    private async listAllCommands(interaction) : Promise<boolean> {
-        
+    async listAllCommands(interaction) {
+
         let res = await Database.instance().getAllCustomCommandNames();
-        
+
         if (!res || res.length === 0) {
             interaction.reply("No custom commands registered.");
             return false;
@@ -184,7 +182,7 @@ export default class CommandCustom extends ApccgSlashCommand {
 
         let responseText = "## Command Names:\n";
         for (const obj of res) {
-            responseText += "- " + (obj as any).command_name + "\n";
+            responseText += "- " + obj.command_name + "\n";
         }
 
         interaction.reply(responseText);
@@ -192,7 +190,7 @@ export default class CommandCustom extends ApccgSlashCommand {
         return true;
     }
 
-    private async invokeCommand(interaction) : Promise<boolean> {
+    async invokeCommand(interaction) {
         const commandName = interaction.options.getString("command_name");
 
         const commandDataObj = await Database.instance().getSingleCommand(commandName);
@@ -202,8 +200,8 @@ export default class CommandCustom extends ApccgSlashCommand {
             return false;
         }
 
-        const commandText = (commandDataObj as any).command_text;
-        const attachmentPath = (commandDataObj as any).attachment_path;
+        const commandText = commandDataObj.command_text;
+        const attachmentPath = commandDataObj.attachment_path;
 
         if (commandText == null || commandText === "") {
             interaction.reply({files:[`./data/attachments/${attachmentPath}`]});
@@ -217,10 +215,4 @@ export default class CommandCustom extends ApccgSlashCommand {
 
         return true;
     }
-}
-
-interface CommandData {
-    commandName : string;
-    commandText : string;
-    attachmentPath : string;
 }

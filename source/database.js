@@ -1,18 +1,10 @@
-import sqlite3, { RunResult } from "sqlite3";
+import sqlite3 from "sqlite3";
 import { Logger, MessageType } from "./logger.js";
 
-interface UserPermissions {
-    canAlterUsers: boolean;
-    canRunCommands: boolean;
-    canStopContainers: boolean;
-    canAddCommands: boolean;
-    canRemoveCommands: boolean;
-}
-
 export default class Database {
-    private static dbinstance: Database | null = null;
-    private sqliteDatabase: sqlite3.Database;
-    private constructor() {
+    static dbinstance = null;
+
+    constructor() {
         this.sqliteDatabase = new sqlite3.Database(
             "./data/apccg.db",
             sqlite3.OPEN_READWRITE | sqlite3.OPEN_CREATE,
@@ -26,7 +18,7 @@ export default class Database {
         );
     }
 
-    public static instance(): Database {
+    static instance() {
         if (Database.dbinstance == null) {
             Database.dbinstance = new Database();
             Database.dbinstance.createTablesIfNotExist();
@@ -35,7 +27,7 @@ export default class Database {
         return Database.dbinstance;
     }
 
-    public createTablesIfNotExist(): void {
+    createTablesIfNotExist() {
         Logger.log(`Initializing tables...`, MessageType.DEBUG);
 
         this.sqliteDatabase.run(`CREATE TABLE IF NOT EXISTS DockerCommands (
@@ -88,15 +80,15 @@ export default class Database {
         )`);
     }
 
-    public getAllCustomCommandNames() : Promise<object[] | null> {
+    getAllCustomCommandNames() {
         Logger.log(`Getting all commands`);
-        return new Promise<object[] | null>((resolve, reject) => {
-            this.sqliteDatabase.all<string>(
+        return new Promise((resolve, reject) => {
+            this.sqliteDatabase.all(
                 `
-                SELECT DISTINCT command_name 
+                SELECT DISTINCT command_name
                 FROM CustomCommands
                 ORDER BY rowid ASC, command_name ASC`,
-                (err: Error | null, rows: object[]) => {
+                (err, rows) => {
                     if (err) {
                         Logger.log(`SQL Error: ${err.message}`, MessageType.WARNING);
                         resolve(null);
@@ -110,16 +102,16 @@ export default class Database {
         });
     }
 
-    public getSingleCommand(commandName : string) : Promise<object | null> {
-        return new Promise<object | null>((resolve, reject) => {
-            this.sqliteDatabase.all<string>(
+    getSingleCommand(commandName) {
+        return new Promise((resolve, reject) => {
+            this.sqliteDatabase.all(
                 `
-                SELECT command_name, command_text, attachment_path 
+                SELECT command_name, command_text, attachment_path
                 FROM CustomCommands
                 WHERE command_name = ?
                 ORDER BY rowid ASC`,
                 [commandName],
-                (err: Error | null, rows: unknown[]) => {
+                (err, rows) => {
                     if (err) {
                         Logger.log(`SQL Error: ${err.message}`, MessageType.WARNING);
                         resolve(null);
@@ -137,22 +129,22 @@ export default class Database {
                     }
 
                     let result = rows[rowN];
-                    resolve(result as object);
+                    resolve(result);
                     return;
                 }
             );
         });
     }
 
-    public removeSingleCommand(commandName : string) : Promise<boolean> {
+    removeSingleCommand(commandName) {
         Logger.log(`Removing command '${commandName}'`);
-        return new Promise<boolean>((resolve, reject) => {
+        return new Promise((resolve, reject) => {
             this.sqliteDatabase.run(
                 `
             DELETE FROM CustomCommands
             WHERE command_name = ?`,
                 [commandName],
-                (err: Error | null) => {
+                (err) => {
                     if (err) {
                         Logger.log(`SQL Error: ${err.message}`, MessageType.WARNING);
                         resolve(false);
@@ -165,15 +157,15 @@ export default class Database {
         });
     }
 
-    public addCustomCommand(commandName : string, commandText : string, attachmentPath : string) : Promise<boolean> {
+    addCustomCommand(commandName, commandText, attachmentPath) {
         Logger.log(`Adding command ${commandName}`);
-        return new Promise<boolean>((resolve, reject) => {
+        return new Promise((resolve, reject) => {
             this.sqliteDatabase.run(
                 `
             INSERT INTO CustomCommands (command_name, command_text, attachment_path)
             VALUES (?, ?, ?)`,
                 [commandName, commandText, attachmentPath],
-                (err: Error | null) => {
+                (err) => {
                     if (err) {
                         Logger.log(`SQL Error: ${err.message}`, MessageType.WARNING);
                         resolve(false);
@@ -186,14 +178,14 @@ export default class Database {
         });
     }
 
-    public getAllKedama() : Promise<object[] | null> {
+    getAllKedama() {
         Logger.log(`Getting all kedama faces`);
-        return new Promise<object[] | null>((resolve, reject) => {
-            this.sqliteDatabase.all<string>(
+        return new Promise((resolve, reject) => {
+            this.sqliteDatabase.all(
                 `
-                SELECT face 
+                SELECT face
                 FROM KedamaFaces`,
-                (err: Error | null, rows: object[]) => {
+                (err, rows) => {
                     if (err) {
                         Logger.log(`SQL Error: ${err.message}`, MessageType.WARNING);
                         resolve(null);
@@ -207,15 +199,15 @@ export default class Database {
         });
     }
 
-    public addKedama(kaomoji: string) : Promise<boolean> {
+    addKedama(kaomoji) {
         Logger.log(`Adding face ${kaomoji}`);
-        return new Promise<boolean>((resolve, reject) => {
+        return new Promise((resolve, reject) => {
             this.sqliteDatabase.run(
                 `
             INSERT INTO KedamaFaces (face)
             VALUES (?)`,
                 [kaomoji],
-                (err: Error | null) => {
+                (err) => {
                     if (err) {
                         Logger.log(`SQL Error: ${err.message}`, MessageType.WARNING);
                         resolve(false);
@@ -228,15 +220,15 @@ export default class Database {
         });
     }
 
-    public addChannelToKPurge(channelId: string): Promise<boolean> {
+    addChannelToKPurge(channelId) {
         Logger.log(`Adding channel to purge ${channelId}`);
-        return new Promise<boolean>((resolve, reject) => {
+        return new Promise((resolve, reject) => {
             this.sqliteDatabase.run(
                 `
             INSERT INTO KSpamRemovalChannels (channel_id)
             VALUES (?)`,
                 [channelId],
-                (err: Error | null) => {
+                (err) => {
                     if (err) {
                         Logger.log(`SQL Error: ${err.message}`, MessageType.WARNING);
                         resolve(false);
@@ -249,15 +241,15 @@ export default class Database {
         });
     }
 
-    public removeChannelToKPurge(channelId: string): Promise<boolean> {
+    removeChannelToKPurge(channelId) {
         Logger.log(`Removing channel to purge ${channelId}`);
-        return new Promise<boolean>((resolve, reject) => {
+        return new Promise((resolve, reject) => {
             this.sqliteDatabase.run(
                 `
             DELETE FROM KSpamRemovalChannels
             WHERE channel_id = ?`,
                 [channelId],
-                (err: Error | null) => {
+                (err) => {
                     if (err) {
                         Logger.log(`SQL Error: ${err.message}`, MessageType.WARNING);
                         resolve(false);
@@ -270,14 +262,14 @@ export default class Database {
         });
     }
 
-    public getAllChannelsToKPurge(): Promise<object[] | null> {
+    getAllChannelsToKPurge() {
         Logger.log(`Retrieving all channels to purge`);
-        return new Promise<object[] | null>((resolve, reject) => {
-            this.sqliteDatabase.all<string>(
+        return new Promise((resolve, reject) => {
+            this.sqliteDatabase.all(
                 `
-                SELECT channel_id 
+                SELECT channel_id
                 FROM KSpamRemovalChannels`,
-                (err: Error | null, rows: object[]) => {
+                (err, rows) => {
                     if (err) {
                         Logger.log(`SQL Error: ${err.message}`, MessageType.WARNING);
                         resolve(null);
@@ -291,15 +283,15 @@ export default class Database {
         });
     }
 
-    public addChannelToPoast(channelId: string): Promise<boolean> {
+    addChannelToPoast(channelId) {
         Logger.log(`Adding channel to find poasts ${channelId}`);
-        return new Promise<boolean>((resolve, reject) => {
+        return new Promise((resolve, reject) => {
             this.sqliteDatabase.run(
                 `
             INSERT INTO RepoastChannels (channel_id)
             VALUES (?)`,
                 [channelId],
-                (err: Error | null) => {
+                (err) => {
                     if (err) {
                         Logger.log(`SQL Error: ${err.message}`, MessageType.WARNING);
                         resolve(false);
@@ -312,15 +304,15 @@ export default class Database {
         });
     }
 
-    public removeChannelFromPoast(channelId: string): Promise<boolean> {
+    removeChannelFromPoast(channelId) {
         Logger.log(`Removing channel from finding poasts ${channelId}`);
-        return new Promise<boolean>((resolve, reject) => {
+        return new Promise((resolve, reject) => {
             this.sqliteDatabase.run(
                 `
             DELETE FROM RepoastChannels
             WHERE channel_id = ?`,
                 [channelId],
-                (err: Error | null) => {
+                (err) => {
                     if (err) {
                         Logger.log(`SQL Error: ${err.message}`, MessageType.WARNING);
                         resolve(false);
@@ -333,14 +325,14 @@ export default class Database {
         });
     }
 
-    public getAllChannelsToPoast(): Promise<object[] | null> {
+    getAllChannelsToPoast() {
         Logger.log(`Retrieving all channels to find poasts`);
-        return new Promise<object[] | null>((resolve, reject) => {
-            this.sqliteDatabase.all<string>(
+        return new Promise((resolve, reject) => {
+            this.sqliteDatabase.all(
                 `
-                SELECT channel_id 
+                SELECT channel_id
                 FROM RepoastChannels`,
-                (err: Error | null, rows: object[]) => {
+                (err, rows) => {
                     if (err) {
                         Logger.log(`SQL Error: ${err.message}`, MessageType.WARNING);
                         resolve(null);
@@ -354,9 +346,9 @@ export default class Database {
         });
     }
 
-    public forgetMessageFromChannel(messageId: String): Promise<boolean> {
+    forgetMessageFromChannel(messageId) {
         Logger.log(`Adding message to be forgotten ${messageId}`);
-        return new Promise<boolean>((resolve, reject) => {
+        return new Promise((resolve, reject) => {
             this.sqliteDatabase.run(
                 `
             INSERT INTO RepoastForgetMe (message_id)
@@ -366,7 +358,7 @@ export default class Database {
             WHERE message_id = ?;
             `,
                 [messageId, messageId],
-                (err: Error | null) => {
+                (err) => {
                     if (err) {
                         Logger.log(`SQL Error: ${err.message}`, MessageType.WARNING);
                         resolve(false);
@@ -379,16 +371,16 @@ export default class Database {
         });
     }
 
-    public addMediaPoastFromChannel(channelId: String, messageId: String, mediaHash: String): Promise<boolean> {
+    addMediaPoastFromChannel(channelId, messageId, mediaHash) {
         Logger.log(`Adding media to be tracked, m:${messageId},c:${channelId}`);
-        return new Promise<boolean>((resolve, reject) =>{ 
+        return new Promise((resolve, reject) => {
             this.sqliteDatabase.run(
                 `
             INSERT INTO RepoastMedia (message_id, channel_id, media_hash)
             VALUES (?,?,?);
                 `,
                 [messageId, channelId, mediaHash],
-                (err: Error | null) => {
+                (err) => {
                     if (err) {
                         Logger.log(`SQL Error: ${err.message}`, MessageType.WARNING);
                         resolve(false);
@@ -401,15 +393,15 @@ export default class Database {
         });
     }
 
-    public getAllMediaHashFromChannel(channelId: String): Promise<object[] | null> {
+    getAllMediaHashFromChannel(channelId) {
         Logger.log(`Retrieving all media poasts from channel ${channelId}`);
-        return new Promise<object[] | null>((resolve, reject) => {
-            this.sqliteDatabase.all<string>(
+        return new Promise((resolve, reject) => {
+            this.sqliteDatabase.all(
                 `
-                SELECT * 
+                SELECT *
                 FROM RepoastMedia
                 where channel_id = ${channelId}`,
-                (err: Error | null, rows: object[]) => {
+                (err, rows) => {
                     if (err) {
                         Logger.log(`SQL Error: ${err.message}`, MessageType.WARNING);
                         resolve(null);
@@ -423,14 +415,14 @@ export default class Database {
         });
     }
 
-    public addRadioStation(radioName: string, radioLink: string): Promise<boolean> {
-        return new Promise<boolean>((resolve, reject) => {
+    addRadioStation(radioName, radioLink) {
+        return new Promise((resolve, reject) => {
             this.sqliteDatabase.run(
                 `
             INSERT INTO RadioStreams (radio_name, radio_stream_link)
             VALUES (?,?)`,
                 [radioName, radioLink],
-                (err: Error | null) => {
+                (err) => {
                     if (err) {
                         Logger.log(`SQL Error: ${err.message}`, MessageType.WARNING);
                         resolve(false);
@@ -443,15 +435,15 @@ export default class Database {
         });
     }
 
-    public getRadioStationUrlByName(radioName: string): Promise<string | null> {
-        return new Promise<string | null>((resolve, reject) => {
-            this.sqliteDatabase.all<string>(
+    getRadioStationUrlByName(radioName) {
+        return new Promise((resolve, reject) => {
+            this.sqliteDatabase.all(
                 `
-                SELECT radio_name, radio_stream_link 
+                SELECT radio_name, radio_stream_link
                 FROM RadioStreams
                 WHERE radio_name = ?`,
                 [radioName],
-                (err: Error | null, rows: unknown[]) => {
+                (err, rows) => {
                     if (err) {
                         Logger.log(`SQL Error: ${err.message}`, MessageType.WARNING);
                         resolve(null);
@@ -463,21 +455,21 @@ export default class Database {
                     }
 
                     let result = rows[0];
-                    resolve((result as any).radio_stream_link as string);
+                    resolve(result.radio_stream_link);
                     return;
                 }
             );
         });
     }
 
-    public removeRadioStation(radioName: string): Promise<boolean> {
-        return new Promise<boolean>((resolve, reject) => {
+    removeRadioStation(radioName) {
+        return new Promise((resolve, reject) => {
             this.sqliteDatabase.run(
                 `
             DELETE FROM RadioStreams
             WHERE radio_name = ?`,
                 [radioName],
-                (err: Error | null) => {
+                (err) => {
                     if (err) {
                         Logger.log(`SQL Error: ${err.message}`, MessageType.WARNING);
                         resolve(false);
@@ -490,13 +482,13 @@ export default class Database {
         });
     }
 
-    public getAllRadioStations(): Promise<object[] | null> {
-        return new Promise<object[] | null>((resolve, reject) => {
-            this.sqliteDatabase.all<string>(
+    getAllRadioStations() {
+        return new Promise((resolve, reject) => {
+            this.sqliteDatabase.all(
                 `
-                SELECT radio_name, radio_stream_link 
+                SELECT radio_name, radio_stream_link
                 FROM RadioStreams`,
-                (err: Error | null, rows: object[]) => {
+                (err, rows) => {
                     if (err) {
                         Logger.log(`SQL Error: ${err.message}`, MessageType.WARNING);
                         resolve(null);
@@ -510,17 +502,10 @@ export default class Database {
         });
     }
 
-    public addDockerUser(
-        userId: string,
-        canAlterUsers: boolean,
-        canAddCommands: boolean,
-        canRemoveCommands: boolean,
-        canRunCommands: boolean,
-        canStopCommands: boolean
-    ): Promise<boolean> {
+    addDockerUser(userId, canAlterUsers, canAddCommands, canRemoveCommands, canRunCommands, canStopCommands) {
         Logger.log(`Adding user ${userId}`, MessageType.DEBUG);
 
-        return new Promise<boolean>((resolve, reject) => {
+        return new Promise((resolve, reject) => {
             this.sqliteDatabase.run(
                 `
             INSERT INTO TrustedUsers (user_id, can_alter_users, can_add_commands, can_remove_commands, can_run_commands, can_stop_commands)
@@ -533,7 +518,7 @@ export default class Database {
                     canRunCommands ? 1 : 0,
                     canStopCommands ? 1 : 0,
                 ],
-                (err: Error | null) => {
+                (err) => {
                     if (err) {
                         Logger.log(`SQL Error: ${err.message}`, MessageType.WARNING);
                         resolve(false);
@@ -546,16 +531,16 @@ export default class Database {
         });
     }
 
-    public removeDockerUser(userId: string): Promise<boolean> {
+    removeDockerUser(userId) {
         Logger.log(`Removing user ${userId}`, MessageType.DEBUG);
 
-        return new Promise<boolean>((resolve, reject) => {
+        return new Promise((resolve, reject) => {
             this.sqliteDatabase.run(
                 `
             DELETE FROM TrustedUsers
             WHERE user_id = ?`,
                 [userId],
-                (err: Error | null) => {
+                (err) => {
                     if (err) {
                         Logger.log(`SQL Error: ${err.message}`, MessageType.WARNING);
                         resolve(false);
@@ -568,16 +553,16 @@ export default class Database {
         });
     }
 
-    public getUserPermissions(userId: string): Promise<UserPermissions> {
+    getUserPermissions(userId) {
         Logger.log(`Checking user permissions for ${userId}`, MessageType.DEBUG);
-        return new Promise<UserPermissions>((resolve, reject) => {
+        return new Promise((resolve, reject) => {
             this.sqliteDatabase.all(
                 `
-            SELECT * 
+            SELECT *
             FROM TrustedUsers
             WHERE user_id = ?`,
                 [userId],
-                (err: Error | null, rows: unknown[]): void => {
+                (err, rows) => {
                     if (err != null) {
                         console.log(err);
                         Logger.log(
@@ -587,7 +572,7 @@ export default class Database {
                         reject(null);
                         return;
                     } else if (rows.length == 0) {
-                        let noPerms: UserPermissions = {
+                        let noPerms = {
                             canAlterUsers: false,
                             canRunCommands: false,
                             canStopContainers: false,
@@ -599,12 +584,12 @@ export default class Database {
                     }
 
                     let userPermData = rows[0];
-                    let userPerms: UserPermissions = {
-                        canAlterUsers: ((userPermData as any).can_alter_users as number) == 1,
-                        canRunCommands: ((userPermData as any).can_run_commands as number) == 1,
-                        canStopContainers: ((userPermData as any).can_stop_commands as number) == 1,
-                        canAddCommands: ((userPermData as any).can_add_commands as number) == 1,
-                        canRemoveCommands: ((userPermData as any).can_remove_commands as number) == 1,
+                    let userPerms = {
+                        canAlterUsers: (userPermData.can_alter_users) == 1,
+                        canRunCommands: (userPermData.can_run_commands) == 1,
+                        canStopContainers: (userPermData.can_stop_commands) == 1,
+                        canAddCommands: (userPermData.can_add_commands) == 1,
+                        canRemoveCommands: (userPermData.can_remove_commands) == 1,
                     };
                     resolve(userPerms);
                     return;
@@ -613,16 +598,16 @@ export default class Database {
         });
     }
 
-    public addDockerCommand(commandName: string, commandContents: string, notes: string = "-"): Promise<boolean> {
+    addDockerCommand(commandName, commandContents, notes = "-") {
         Logger.log(`Adding new command '${commandContents}' as '${commandName}'`, MessageType.DEBUG);
 
-        return new Promise<boolean>((resolve, reject) => {
+        return new Promise((resolve, reject) => {
             this.sqliteDatabase.run(
                 `
-                INSERT INTO DockerCommands (command_name, command_contents, notes) 
+                INSERT INTO DockerCommands (command_name, command_contents, notes)
                 VALUES (?,?,?)`,
                 [commandName, commandContents, notes],
-                (err: Error | null) => {
+                (err) => {
                     if (err != null) {
                         Logger.log(`SQL Error: ${err.message}`, MessageType.WARNING);
                         resolve(false);
@@ -635,16 +620,16 @@ export default class Database {
         });
     }
 
-    public removeDockerCommand(commandName: string): Promise<boolean> {
+    removeDockerCommand(commandName) {
         Logger.log(`Removing command ${commandName}`, MessageType.DEBUG);
 
-        return new Promise<boolean>((resolve, reject) => {
+        return new Promise((resolve, reject) => {
             this.sqliteDatabase.run(
                 `
-                DELETE FROM DockerCommands 
+                DELETE FROM DockerCommands
                 WHERE command_name = ?`,
                 [commandName],
-                (err: Error | null) => {
+                (err) => {
                     if (err) {
                         Logger.log(`SQL Error: ${err.message}`, MessageType.WARNING);
                         resolve(false);
@@ -658,17 +643,17 @@ export default class Database {
         });
     }
 
-    public getCommandContentsByName(commandName: string): Promise<object | null> {
+    getCommandContentsByName(commandName) {
         Logger.log(`Inspecting command ${commandName}`, MessageType.DEBUG);
 
-        return new Promise<object | null>((resolve, reject) => {
-            this.sqliteDatabase.all<object>(
+        return new Promise((resolve, reject) => {
+            this.sqliteDatabase.all(
                 `
-                SELECT command_contents, notes 
+                SELECT command_contents, notes
                 FROM DockerCommands
                 WHERE command_name = ?`,
                 [commandName],
-                (err: Error | null, rows: object[]) => {
+                (err, rows) => {
                     if (err || rows.length == 0) {
                         Logger.log(`SQL Error: ${err == null ? "No results" : err.message}`, MessageType.WARNING);
                         resolve(null);
@@ -682,14 +667,14 @@ export default class Database {
         });
     }
 
-    public getAllDockerCommands(): Promise<object[] | null> {
+    getAllDockerCommands() {
         Logger.log("Inspecting all commands", MessageType.DEBUG);
-        return new Promise<object[] | null>((resolve, reject) => {
-            this.sqliteDatabase.all<string>(
+        return new Promise((resolve, reject) => {
+            this.sqliteDatabase.all(
                 `
-                SELECT command_name, command_contents, notes 
+                SELECT command_name, command_contents, notes
                 FROM DockerCommands`,
-                (err: Error | null, rows: object[]) => {
+                (err, rows) => {
                     if (err) {
                         Logger.log(`SQL Error: ${err.message}`, MessageType.WARNING);
                         resolve(null);

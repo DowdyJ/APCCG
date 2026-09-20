@@ -1,13 +1,9 @@
-import { CommandInteraction, EmbedBuilder, GuildMember, InteractionType, Message, SlashCommandBuilder } from "discord.js";
-import discord from "discord.js";
+import { EmbedBuilder, InteractionType, SlashCommandBuilder } from "discord.js";
 import ApccgSlashCommand from "./apccg_slash_command.js";
 import { Logger, MessageType } from "../logger.js";
 import {
     AudioPlayer,
-    DiscordGatewayAdapterCreator,
     NoSubscriberBehavior,
-    StreamType,
-    VoiceConnection,
     createAudioResource,
     getVoiceConnection,
     joinVoiceChannel,
@@ -15,11 +11,11 @@ import {
 import Database from "../database.js";
 
 export default class CommandRadio extends ApccgSlashCommand {
-    public disabled(): boolean {
+    disabled() {
         return false;
     }
 
-    public commandData(): any {
+    commandData() {
         return new SlashCommandBuilder()
             .setName("radio")
             .setDescription("Play internet radio")
@@ -58,13 +54,13 @@ export default class CommandRadio extends ApccgSlashCommand {
             );
     }
 
-    public async execute(args: any[]): Promise<boolean> {
-        const interaction = args[0] as discord.CommandInteraction;
+    async execute(args) {
+        const interaction = args[0];
 
         // Filters down command type so that getSubcommand() will work
         if (interaction.type !== InteractionType.ApplicationCommand || !interaction.isChatInputCommand()) return false;
 
-        let subcommandName: string = interaction.options.getSubcommand();
+        let subcommandName = interaction.options.getSubcommand();
 
         switch (subcommandName) {
             case "play":
@@ -84,11 +80,11 @@ export default class CommandRadio extends ApccgSlashCommand {
         return false;
     }
 
-    public override getTitle(): string {
+    getTitle() {
         return "Radio";
     }
 
-    public override getDescription(): string {
+    getDescription() {
         return `**/radio play** [radio name] -> Join a channel and play the stream specified
         **/radio stop** -> Stop playing music leave the channel
         **/radio list** -> Lists available radio stations
@@ -96,11 +92,11 @@ export default class CommandRadio extends ApccgSlashCommand {
         **/radio remove** [radio name] -> Delete radio entry from list`;
     }
 
-    audioPlayer: AudioPlayer | null = null;
-    connection: VoiceConnection | null = null;
-    lastStream: string | null = null;
+    audioPlayer = null;
+    connection = null;
+    lastStream = null;
 
-    private async listAvailableRadio(interaction: CommandInteraction): Promise<boolean> {
+    async listAvailableRadio(interaction) {
         const databaseResult = await Database.instance().getAllRadioStations();
 
         if (databaseResult == null) {
@@ -112,8 +108,8 @@ export default class CommandRadio extends ApccgSlashCommand {
         let radioUrls = "";
 
         for (const obj of databaseResult) {
-            radioNames += (obj as any).radio_name + "\n";
-            radioUrls += (obj as any).radio_stream_link + "\n";
+            radioNames += obj.radio_name + "\n";
+            radioUrls += obj.radio_stream_link + "\n";
         }
 
         if (radioNames === "") {
@@ -137,7 +133,7 @@ export default class CommandRadio extends ApccgSlashCommand {
         return true;
     }
 
-    private async removeRadioFromDatabase(interaction: CommandInteraction): Promise<boolean> {
+    async removeRadioFromDatabase(interaction) {
         const streamName = interaction.options.get("stream_name")?.value;
         if (streamName == null || typeof streamName !== "string") return false;
 
@@ -148,10 +144,10 @@ export default class CommandRadio extends ApccgSlashCommand {
         return success;
     }
 
-    private async addRadioToDatabase(interaction: CommandInteraction): Promise<boolean> {
+    async addRadioToDatabase(interaction) {
         const streamName = interaction.options.get("stream_name")?.value;
         const streamUrl = interaction.options.get("stream_url")?.value;
-        
+
         if (typeof streamName !== "string" || typeof streamUrl !== "string") return false;
 
         let success = await Database.instance().addRadioStation(streamName, streamUrl);
@@ -162,7 +158,7 @@ export default class CommandRadio extends ApccgSlashCommand {
         return success;
     }
 
-    private async JoinChannelAndPlay(interaction: CommandInteraction): Promise<boolean> {
+    async JoinChannelAndPlay(interaction) {
         const streamName = interaction.options.get("stream_name")?.value;
         if (typeof streamName !== 'string') {
             interaction.reply("That is certainly not the name of the station!");
@@ -181,13 +177,13 @@ export default class CommandRadio extends ApccgSlashCommand {
 
         Logger.log(`Playing streamlink: ${streamLink}`, MessageType.DEBUG);
 
-        if ((interaction.member! as GuildMember).voice.channel !== null) {
+        if (interaction.member.voice.channel !== null) {
             Logger.log(`Joining channel and playing tunes.`, MessageType.DEBUG);
 
             this.connection = joinVoiceChannel({
-                channelId: (interaction.member! as GuildMember).voice.channel!.id,
-                guildId: interaction.guild!.id,
-                adapterCreator: interaction.guild!.voiceAdapterCreator as any,
+                channelId: interaction.member.voice.channel.id,
+                guildId: interaction.guild.id,
+                adapterCreator: interaction.guild.voiceAdapterCreator,
             });
 
             this.audioPlayer = new AudioPlayer({
@@ -227,15 +223,15 @@ export default class CommandRadio extends ApccgSlashCommand {
         return false;
     }
 
-    private attemptToRestartAudio(): void {
+    attemptToRestartAudio() {
         if (this.lastStream == null) return;
 
         const resource = createAudioResource(this.lastStream);
         this.audioPlayer?.play(resource);
     }
 
-    private async leaveChannelAndStop(interaction: CommandInteraction): Promise<boolean> {
-        const guildId = interaction.guild!.id;
+    async leaveChannelAndStop(interaction) {
+        const guildId = interaction.guild.id;
         if (!guildId) {
             return false;
         }

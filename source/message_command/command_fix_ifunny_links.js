@@ -1,34 +1,33 @@
-import discord from "discord.js";
 import ApccgMessageCommand from "./apccg_message_command.js";
-import { Logger, MessageType } from "../logger.js";
+import { Logger } from "../logger.js";
 import fetch from "node-fetch";
 
 export default class IfunnyMessageCommand extends ApccgMessageCommand {
-    public pattern: RegExp = /https:\/\/ifunny\.co.*/;
+    pattern = /https:\/\/ifunny\.co.*/;
 
-    public isMatch(message: discord.Message): boolean {
+    isMatch(message) {
         return !!message.cleanContent.match(this.pattern);
     }
 
-    public async execute(message: discord.Message): Promise<void> {
+    async execute(message) {
 
         let newLink = await this.getIFunnyVideoUrl(message.cleanContent)
         if (newLink === "") {
             return;
         }
-        await (message.channel as discord.TextChannel).send(`From ${message.author.username}:\n\n${newLink}`);
+        await message.channel.send(`From ${message.author.username}:\n\n${newLink}`);
         await message.delete();
     }
 
-    public getTitle(): string {
+    getTitle() {
         return "ifunny Link Fix";
     }
 
-    public getDescription(): string {
+    getDescription() {
         return "Triggers on ifunny.co links. Retrieves video url.";
     }
 
-    public async getIFunnyVideoUrl(siteUrl, retries = 10, delay = 3000) {
+    async getIFunnyVideoUrl(siteUrl, retries = 10, delay = 3000) {
         const url = siteUrl;
         Logger.log(`Converting link: ${siteUrl}`)
 
@@ -55,17 +54,17 @@ export default class IfunnyMessageCommand extends ApccgMessageCommand {
           })
 
           clearTimeout(timeout);
-          
+
           Logger.log("Finished fetching page.")
           if (!response.ok) {
             throw new Error(`Response status: ${response.status}`);
           }
-          
+
           const html = await response.text();
           const startIndex = html.indexOf("data-src=", html.indexOf("<video")) + 10; // The length of the attribute and quote
           const endIndex = html.indexOf("\"", startIndex);
           const videoUrl = html.substring(startIndex, endIndex);
-  
+
           return videoUrl;
         } catch (error) {
             console.log("Fetch failed with error: ");

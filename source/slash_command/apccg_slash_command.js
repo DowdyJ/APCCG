@@ -1,23 +1,21 @@
-import discord from "discord.js";
-
 export default class ApccgSlashCommand {
-    commandData(): discord.SlashCommandBuilder {
+    commandData() {
         throw new Error("Unimplemented method CommandData");
     }
 
-    execute(args: any[]): Promise<boolean> {
+    execute(args) {
         throw new Error("Unimplemented method Execute");
     }
 
-    disabled(): boolean {
+    disabled() {
         throw new Error("Unimplemented method Disabled");
     }
 
-    getTitle(): string {
+    getTitle() {
         throw new Error("Unimplemented method GetTitle");
     }
 
-    getDescription(): string {
+    getDescription() {
         throw new Error("Unimplemented method GetDescription");
     }
 }

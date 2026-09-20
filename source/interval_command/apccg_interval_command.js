@@ -1,35 +1,33 @@
-import discord from "discord.js";
-
 export default class ApccgIntervalCommand {
-    commandData(): discord.SlashCommandBuilder {
+    commandData() {
         throw new Error("Unimplemented method CommandData");
     }
 
-    execute(args: any[]): Promise<boolean> {
+    execute(args) {
         throw new Error("Unimplemented method Execute");
     }
 
-    executeInterval(): Promise<boolean> {
+    executeInterval() {
         throw new Error("Unimplemented method ExecuteInterval")
     }
 
-    disabled(): boolean {
+    disabled() {
         throw new Error("Unimplemented method Disabled");
     }
 
-    getTitle(): string {
+    getTitle() {
         throw new Error("Unimplemented method GetTitle");
     }
 
-    getDescription(): string {
+    getDescription() {
         throw new Error("Unimplemented method GetDescription");
     }
 
-    shouldRepeatNow(): Promise<boolean> {
+    shouldRepeatNow() {
         throw new Error("Unimplemented method shouldRepeatNow");
     }
 
-    getInterval(): number {
+    getInterval() {
         throw new Error("Unimplemented method getInterval");
     }
 }

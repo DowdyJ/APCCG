@@ -1,21 +1,19 @@
-import discord from "discord.js";
-
 export default class ApccgMessageCommand {
-    public pattern: RegExp = new RegExp("(?=a)(?!a)");
+    pattern = new RegExp("(?=a)(?!a)");
 
-    public isMatch(message: discord.Message): boolean {
+    isMatch(message) {
         return !!message.cleanContent.match(this.pattern);
     }
 
-    public async execute(message: discord.Message): Promise<void> {
+    async execute(message) {
         throw new Error('Unimplemented method "execute()"');
     }
 
-    public getTitle(): string {
+    getTitle() {
         throw new Error("Unimplemented method GetTitle");
     }
 
-    public getDescription(): string {
+    getDescription() {
         throw new Error("Unimplemented method GetDescription");
     }
 }

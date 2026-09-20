@@ -1,20 +1,19 @@
-import { CommandInteraction, InteractionType, SlashCommandBuilder, range } from "discord.js";
-import discord from "discord.js";
+import { InteractionType, SlashCommandBuilder, range } from "discord.js";
 import ApccgSlashCommand from "./apccg_slash_command.js";
 import { Logger } from "../logger.js";
 
 export default class CommandRoll extends ApccgSlashCommand {
-    public override disabled(): boolean {
+    disabled() {
         return false;
     }
 
-    public override commandData(): any {
+    commandData() {
         return new SlashCommandBuilder().setName("roll").setDescription("roll a dice")
             .addStringOption((input) => input.setRequired(true).setDescription("Roll a Y sided dice X times (XdY)").setName("dice_string").setMinLength(3));
     }
 
-    public override async execute(args: any[]): Promise<boolean> {
-        const interaction = args[0] as discord.CommandInteraction;
+    async execute(args) {
+        const interaction = args[0];
 
         // Filters down command type so that getSubcommand() will work
         if (interaction.type !== InteractionType.ApplicationCommand || !interaction.isChatInputCommand()) return false;
@@ -23,7 +22,7 @@ export default class CommandRoll extends ApccgSlashCommand {
         const rollData = this.parseRollString(diceString);
 
         if (rollData == null || rollData.maxValue === undefined || rollData.count === undefined || rollData.maxValue === 0 || rollData.count === 0) {
-            interaction.reply(`(                                 
+            interaction.reply(`(
             )                               /=>
            (  +__//_ / /|
             .''.__'.      / /|/\
@@ -61,16 +60,16 @@ export default class CommandRoll extends ApccgSlashCommand {
         return true;
     }
 
-    public override getTitle(): string {
+    getTitle() {
         return "Roll";
     }
 
-    public override getDescription(): string {
+    getDescription() {
         return `**/roll** [XdY] -> Roll a Y sided dice X times`;
     }
 
-    private parseRollString(rollString: string): RollData {
-        const isNumberChar = (char: string) => { return char.charCodeAt(0) > 47 && char.charCodeAt(0) < 58 };
+    parseRollString(rollString) {
+        const isNumberChar = (char) => { return char.charCodeAt(0) > 47 && char.charCodeAt(0) < 58 };
 
         let rollCountSring = "";
         let diceSizeString = "";
@@ -82,7 +81,7 @@ export default class CommandRoll extends ApccgSlashCommand {
         }
 
         index++;
-        
+
         while (index < rollString.length && isNumberChar(rollString.charAt(index))) {
             diceSizeString += rollString.charAt(index);
             index++;
@@ -97,7 +96,7 @@ export default class CommandRoll extends ApccgSlashCommand {
         return { maxValue: maxVal, count: count };
     }
 
-    private rollDice(diceMax: number, diceCount: number) : Array<number> {
+    rollDice(diceMax, diceCount) {
         let result = [];
 
         for (const i of range(diceCount)) {
@@ -107,9 +106,4 @@ export default class CommandRoll extends ApccgSlashCommand {
 
         return result;
     }
-}
-
-interface RollData {
-    maxValue: number;
-    count: number;
 }

@@ -1,36 +1,27 @@
-import discord, { Attachment, TextChannel } from "discord.js";
 import ApccgMessageCommand from "./apccg_message_command.js";
 import fs from "fs";
 import { execFile, spawn } from "child_process";
 
-interface FfprobeStream {
-    codec_name?: string;
-}
-
-interface FfprobeOutput {
-    streams: FfprobeStream[];
-}
-
 export default class CommandFixTwitterLinks extends ApccgMessageCommand {
-    public override getTitle(): string {
+    getTitle() {
         return "H265 Video Embed Fix";
     }
 
-    public override getDescription(): string {
+    getDescription() {
         return "Triggers on messages with one attachment that is an h265 format video. Converts to h264 and replaces original.";
     }
 
-    public override isMatch(message: discord.Message): boolean {
+    isMatch(message) {
         if (message.attachments.size == 1) {
-            let attach = message.attachments.first() as Attachment;
+            let attach = message.attachments.first();
             return attach.contentType == "video/mp4";
         }
 
         return false;
     }
 
-    public override async execute(message: discord.Message): Promise<void> {
-        let attachment = message.attachments.first() as Attachment;
+    async execute(message) {
+        let attachment = message.attachments.first();
 
         const url = attachment.url;
 
@@ -40,7 +31,7 @@ export default class CommandFixTwitterLinks extends ApccgMessageCommand {
                 return;
             }
 
-            let metadata: FfprobeOutput;
+            let metadata;
             try {
                 metadata = JSON.parse(stdout);
             } catch (parseErr) {
@@ -73,7 +64,7 @@ export default class CommandFixTwitterLinks extends ApccgMessageCommand {
                     return;
                 }
 
-                (message.channel as TextChannel)
+                message.channel
                     .send({
                         content: `From ${message.author.username}:`,
                         files: [`${output}`],

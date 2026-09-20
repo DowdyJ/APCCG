@@ -195,7 +195,7 @@ export default class CommandDocker extends ApccgSlashCommand {
             return new Promise((resolve, reject) => resolve(false));
         }
 
-        let userToChange = interaction.user;
+        let userToChange = interaction.options.getUser("user");
         const canAlterUsers = interaction.options.get("can_alter_users")?.value;
         const canAddCommands = interaction.options.get("can_add_commands")?.value;
         const canRemoveCommands = interaction.options.get("can_remove_commands")?.value;
@@ -227,7 +227,7 @@ export default class CommandDocker extends ApccgSlashCommand {
             return new Promise((resolve, reject) => resolve(false));
         }
 
-        let userToChange = interaction.user;
+        let userToChange = interaction.options.getUser("user");
 
         let database = Database.instance();
         let res = await database.removeDockerUser(userToChange.id);

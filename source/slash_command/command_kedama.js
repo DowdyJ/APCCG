@@ -1,7 +1,19 @@
-import { InteractionType, SlashCommandBuilder } from "discord.js";
+import {
+    ActionRowBuilder,
+    ButtonBuilder,
+    ButtonStyle,
+    ComponentType,
+    EmbedBuilder,
+    InteractionType,
+    MessageFlags,
+    SlashCommandBuilder,
+} from "discord.js";
 import ApccgSlashCommand from "./apccg_slash_command.js";
 import { Logger, MessageType } from "../logger.js";
 import Database from "../database.js";
+
+const KEDAMA_PAGE_SIZE = 10;
+const KEDAMA_COLLECTOR_TIMEOUT_MS = 120_000;
 
 export default class CommandHello extends ApccgSlashCommand {
     disabled() {
@@ -82,20 +94,89 @@ export default class CommandHello extends ApccgSlashCommand {
             return false;
         }
 
-        let kedamaFaces = "";
-
-        for (const obj of databaseResult) {
-            kedamaFaces += obj.face + "\n";
+        const faces = databaseResult.map((obj) => obj.face);
+        const pages = [];
+        for (let i = 0; i < faces.length; i += KEDAMA_PAGE_SIZE) {
+            pages.push(faces.slice(i, i + KEDAMA_PAGE_SIZE));
         }
+        if (pages.length === 0) pages.push([]);
 
-        if (kedamaFaces === "") {
-            kedamaFaces = "-";
-        }
+        let currentPage = 0;
 
-        interaction.reply(">>>>>>>>>>>>>>>>>>>>>>>>>>>>>");
-        interaction.channel.send(`\`\`\`\n${kedamaFaces}\n\`\`\``);
-        interaction.channel.send("<<<<<<<<<<<<<<<<<<<<<<<<<<<<<")
+        await interaction.reply({
+            embeds: [this.buildKedamaEmbed(pages, currentPage, faces.length)],
+            components: [this.buildKedamaRow(pages, currentPage)],
+        });
+
+        if (pages.length <= 1) return true;
+
+        const message = await interaction.fetchReply();
+
+        const collector = message.createMessageComponentCollector({
+            componentType: ComponentType.Button,
+            time: KEDAMA_COLLECTOR_TIMEOUT_MS,
+        });
+
+        collector.on("collect", async (componentInteraction) => {
+            if (componentInteraction.user.id !== interaction.user.id) {
+                await componentInteraction.reply({
+                    content: "This isn't your kedama list - run /kedama list yourself!",
+                    flags: MessageFlags.Ephemeral,
+                });
+                return;
+            }
+
+            if (componentInteraction.customId === "kedama_prev") {
+                currentPage = Math.max(0, currentPage - 1);
+            } else if (componentInteraction.customId === "kedama_next") {
+                currentPage = Math.min(pages.length - 1, currentPage + 1);
+            }
+
+            await componentInteraction.update({
+                embeds: [this.buildKedamaEmbed(pages, currentPage, faces.length)],
+                components: [this.buildKedamaRow(pages, currentPage)],
+            });
+        });
+
+        collector.on("end", async () => {
+            try {
+                await message.edit({ components: [this.buildKedamaRow(pages, currentPage, true)] });
+            } catch (error) {
+                Logger.log(error.message);
+            }
+        });
+
         return true;
+    }
+
+    buildKedamaEmbed(pages, pageIndex, totalCount) {
+        const entries = pages[pageIndex];
+        const lines =
+            entries.length === 0
+                ? "-"
+                : entries.map((face, i) => `${pageIndex * KEDAMA_PAGE_SIZE + i + 1}. ${face}`).join("\n");
+
+        return new EmbedBuilder()
+            .setColor(0xffffff)
+            .setTitle("Kedama Faces")
+            .setDescription("```\n" + lines + "\n```")
+            .setFooter({ text: `Page ${pageIndex + 1}/${pages.length} - ${totalCount} total` });
+    }
+
+    buildKedamaRow(pages, pageIndex, disabled = false) {
+        const prevButton = new ButtonBuilder()
+            .setCustomId("kedama_prev")
+            .setLabel("◀ Previous")
+            .setStyle(ButtonStyle.Secondary)
+            .setDisabled(disabled || pageIndex === 0);
+
+        const nextButton = new ButtonBuilder()
+            .setCustomId("kedama_next")
+            .setLabel("Next ▶")
+            .setStyle(ButtonStyle.Secondary)
+            .setDisabled(disabled || pageIndex === pages.length - 1);
+
+        return new ActionRowBuilder().addComponents(prevButton, nextButton);
     }
 
     async getRandomKaomoji(interaction) {

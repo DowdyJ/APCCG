@@ -96,9 +96,27 @@ export class CustomClient extends discord.Client {
     messageCommands = [];
     intervalCommands = [];
 
+    // Discord's gateway can redeliver events already handled once (e.g. after a reconnect/resume),
+    // so every dispatch path is guarded against processing the same message/interaction twice.
+    recentlyHandledIds = new Set();
+
+    markHandled(id) {
+        if (this.recentlyHandledIds.has(id)) return false;
+        this.recentlyHandledIds.add(id);
+        if (this.recentlyHandledIds.size > 1000) {
+            this.recentlyHandledIds.delete(this.recentlyHandledIds.values().next().value);
+        }
+        return true;
+    }
+
     async processCommandsAsync(interaction) {
         let returnValue = false;
         if (!interaction.isChatInputCommand()) return returnValue;
+
+        if (!this.markHandled(interaction.id)) {
+            Logger.log(`Ignoring duplicate interaction ${interaction.id} (already handled)`, MessageType.WARNING);
+            return returnValue;
+        }
 
         for (const c of this.slashCommands) {
             if (c.commandData().name === interaction.commandName) {
@@ -119,6 +137,11 @@ export class CustomClient extends discord.Client {
 
     async handleMessages(message) {
         if (message.author.bot) return;
+
+        if (!this.markHandled(message.id)) {
+            Logger.log(`Ignoring duplicate message ${message.id} (already handled)`, MessageType.WARNING);
+            return;
+        }
 
         for (const messageCommand of this.messageCommands) {
             if (messageCommand.isMatch(message)) {

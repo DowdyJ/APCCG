@@ -1,6 +1,6 @@
 import ApccgMessageCommand from "./apccg_message_command.js";
 
-export default class CommandFixTwitterLinks extends ApccgMessageCommand {
+export default class CommandQRD extends ApccgMessageCommand {
     pattern = /qrd/;
 
     async execute(message) {

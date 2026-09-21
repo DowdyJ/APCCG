@@ -250,6 +250,24 @@ export default class CommandRadio extends ApccgSlashCommand {
                 MessageType.DEBUG
             );
 
+            // Covers external disconnects too (kicked from the channel, connection dropped, etc.),
+            // not just /radio stop - otherwise stale state lingers here until a later /radio play
+            // happens to overwrite it. Guarded so a stale listener from an old connection can't
+            // clobber a newer connection's state for the same guild.
+            if (
+                (newState.status === VoiceConnectionStatus.Disconnected ||
+                    newState.status === VoiceConnectionStatus.Destroyed) &&
+                this.getConnection(interaction) === connection
+            ) {
+                Logger.log(
+                    `Voice connection for guild ${interaction.guild.id} ended (${newState.status}) - clearing stored state.`,
+                    MessageType.WARNING
+                );
+                this.setConnection(interaction, null);
+                this.setAudioPlayer(interaction, null);
+                this.setLastStream(interaction, null);
+            }
+
             // @discordjs/voice never surfaces the raw websocket close code through its own
             // debug/error events, so we tap the internal networking object directly to get it.
             if (newState.status === "connecting" && newState.networking) {

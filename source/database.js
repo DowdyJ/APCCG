@@ -50,20 +50,6 @@ export default class Database {
             channel_id TEXT PRIMARY KEY NOT NULL
         )`);
 
-        this.sqliteDatabase.exec(`CREATE TABLE IF NOT EXISTS RepoastChannels (
-            channel_id TEXT PRIMARY KEY NOT NULL
-        )`);
-
-        this.sqliteDatabase.exec(`CREATE TABLE IF NOT EXISTS RepoastForgetMe (
-            message_id TEXT PRIMARY KEY NOT NULL
-        )`);
-
-        this.sqliteDatabase.exec(`CREATE TABLE IF NOT EXISTS RepoastMedia (
-            message_id TEXT PRIMARY KEY NOT NULL,
-            channel_id TEXT NOT NULL,
-            message_hash TEXT NOT NULL
-        )`);
-
         this.sqliteDatabase.exec(`CREATE TABLE IF NOT EXISTS KedamaFaces (
             id INTEGER PRIMARY KEY,
             face TEXT NOT NULL UNIQUE
@@ -237,102 +223,6 @@ export default class Database {
                 const rows = this.sqliteDatabase.prepare(`
                 SELECT channel_id
                 FROM KSpamRemovalChannels`).all();
-                resolve(rows);
-            } catch (err) {
-                Logger.log(`SQL Error: ${err.message}`, MessageType.WARNING);
-                resolve(null);
-            }
-        });
-    }
-
-    addChannelToPoast(channelId) {
-        Logger.log(`Adding channel to find poasts ${channelId}`);
-        return new Promise((resolve, reject) => {
-            try {
-                this.sqliteDatabase.prepare(`
-            INSERT INTO RepoastChannels (channel_id)
-            VALUES (?)`).run(channelId);
-                resolve(true);
-            } catch (err) {
-                Logger.log(`SQL Error: ${err.message}`, MessageType.WARNING);
-                resolve(false);
-            }
-        });
-    }
-
-    removeChannelFromPoast(channelId) {
-        Logger.log(`Removing channel from finding poasts ${channelId}`);
-        return new Promise((resolve, reject) => {
-            try {
-                this.sqliteDatabase.prepare(`
-            DELETE FROM RepoastChannels
-            WHERE channel_id = ?`).run(channelId);
-                resolve(true);
-            } catch (err) {
-                Logger.log(`SQL Error: ${err.message}`, MessageType.WARNING);
-                resolve(false);
-            }
-        });
-    }
-
-    getAllChannelsToPoast() {
-        Logger.log(`Retrieving all channels to find poasts`);
-        return new Promise((resolve, reject) => {
-            try {
-                const rows = this.sqliteDatabase.prepare(`
-                SELECT channel_id
-                FROM RepoastChannels`).all();
-                resolve(rows);
-            } catch (err) {
-                Logger.log(`SQL Error: ${err.message}`, MessageType.WARNING);
-                resolve(null);
-            }
-        });
-    }
-
-    forgetMessageFromChannel(messageId) {
-        Logger.log(`Adding message to be forgotten ${messageId}`);
-        return new Promise((resolve, reject) => {
-            try {
-                this.sqliteDatabase.prepare(`
-            INSERT INTO RepoastForgetMe (message_id)
-            VALUES (?)`).run(messageId);
-
-                this.sqliteDatabase.prepare(`
-            DELETE FROM RepoastMedia
-            WHERE message_id = ?`).run(messageId);
-
-                resolve(true);
-            } catch (err) {
-                Logger.log(`SQL Error: ${err.message}`, MessageType.WARNING);
-                resolve(false);
-            }
-        });
-    }
-
-    addMediaPoastFromChannel(channelId, messageId, mediaHash) {
-        Logger.log(`Adding media to be tracked, m:${messageId},c:${channelId}`);
-        return new Promise((resolve, reject) => {
-            try {
-                this.sqliteDatabase.prepare(`
-            INSERT INTO RepoastMedia (message_id, channel_id, media_hash)
-            VALUES (?,?,?)`).run(messageId, channelId, mediaHash);
-                resolve(true);
-            } catch (err) {
-                Logger.log(`SQL Error: ${err.message}`, MessageType.WARNING);
-                resolve(false);
-            }
-        });
-    }
-
-    getAllMediaHashFromChannel(channelId) {
-        Logger.log(`Retrieving all media poasts from channel ${channelId}`);
-        return new Promise((resolve, reject) => {
-            try {
-                const rows = this.sqliteDatabase.prepare(`
-                SELECT *
-                FROM RepoastMedia
-                where channel_id = ${channelId}`).all();
                 resolve(rows);
             } catch (err) {
                 Logger.log(`SQL Error: ${err.message}`, MessageType.WARNING);

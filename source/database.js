@@ -60,6 +60,52 @@ export default class Database {
             command_text TEXT,
             attachment_path TEXT
         )`);
+
+        // Named distinctly from any prior "CommandConfiguration"-style table so this can't collide
+        // with a differently-shaped table of the same name left over from an earlier attempt.
+        this.sqliteDatabase.exec(`CREATE TABLE IF NOT EXISTS BotSettings (
+            setting_key TEXT PRIMARY KEY NOT NULL,
+            setting_value TEXT
+        )`);
+    }
+
+    setConfigValue(key, value) {
+        Logger.log(`Setting config ${key} = ${value}`, MessageType.DEBUG);
+        return new Promise((resolve, reject) => {
+            try {
+                this.sqliteDatabase.prepare(`
+            INSERT INTO BotSettings (setting_key, setting_value)
+            VALUES (?, ?)
+            ON CONFLICT(setting_key) DO UPDATE SET setting_value = excluded.setting_value`).run(key, value);
+                resolve(true);
+            } catch (err) {
+                Logger.log(`SQL Error: ${err.message}`, MessageType.WARNING);
+                resolve(false);
+            }
+        });
+    }
+
+    getConfigValue(key) {
+        return new Promise((resolve, reject) => {
+            try {
+                const row = this.sqliteDatabase.prepare(`
+                SELECT setting_value
+                FROM BotSettings
+                WHERE setting_key = ?`).get(key);
+                resolve(row ? row.setting_value : null);
+            } catch (err) {
+                Logger.log(`SQL Error: ${err.message}`, MessageType.WARNING);
+                resolve(null);
+            }
+        });
+    }
+
+    setTwitterReplacementUrl(url) {
+        return this.setConfigValue("twitter_fix_url", url);
+    }
+
+    getTwitterReplacementUrl() {
+        return this.getConfigValue("twitter_fix_url");
     }
 
     getAllCustomCommandNames() {

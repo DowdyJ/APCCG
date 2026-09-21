@@ -1,4 +1,5 @@
 import ApccgMessageCommand from "./apccg_message_command.js";
+import { Logger, MessageType } from "../logger.js";
 import fs from "fs";
 import { execFile, spawn } from "child_process";
 
@@ -74,9 +75,15 @@ export default class CommandFixTwitterLinks extends ApccgMessageCommand {
                     })
                     .then(() => {
                         statusMessage.then((sm) => {
-                            sm.delete();
+                            // Expected sometimes - another bot may already have deleted these
+                            // (e.g. a moderation bot reacting to the same message/link).
+                            sm.delete().catch((err) => {
+                                Logger.log(`Could not delete status message (likely already removed): ${err.message}`, MessageType.VERBOSE);
+                            });
                         });
-                        message.delete();
+                        message.delete().catch((err) => {
+                            Logger.log(`Could not delete original message (likely already removed): ${err.message}`, MessageType.VERBOSE);
+                        });
 
                         fs.rm(output, () => {});
                     });

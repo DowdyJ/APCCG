@@ -1,5 +1,5 @@
 import ApccgMessageCommand from "./apccg_message_command.js";
-import { Logger } from "../logger.js";
+import { Logger, MessageType } from "../logger.js";
 
 export default class IfunnyMessageCommand extends ApccgMessageCommand {
     pattern = /https:\/\/ifunny\.co.*/;
@@ -15,7 +15,14 @@ export default class IfunnyMessageCommand extends ApccgMessageCommand {
             return;
         }
         await message.channel.send(`From ${message.author.username}:\n\n${newLink}`);
-        await message.delete();
+
+        try {
+            await message.delete();
+        } catch (err) {
+            // Expected sometimes - another bot in the server may already have deleted the
+            // original link message (e.g. a moderation bot reacting to the same link).
+            Logger.log(`Could not delete original message (likely already removed): ${err.message}`, MessageType.VERBOSE);
+        }
     }
 
     getTitle() {

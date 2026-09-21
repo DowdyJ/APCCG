@@ -2,7 +2,7 @@ import ApccgMessageCommand from "./apccg_message_command.js";
 import Database from "../database.js"
 
 export default class CommandShortInvoke extends ApccgMessageCommand {
-    pattern = /^->/
+    pattern = /^[-~]>/
 
     async execute(message) {
         this.relayCommand(message);
@@ -13,7 +13,7 @@ export default class CommandShortInvoke extends ApccgMessageCommand {
     }
 
     getDescription() {
-        return "The shorthand form of the slash command for invoking custom commands. use \"->[command name]\"";
+        return "The shorthand form of the slash command for invoking custom commands. use \"->[command name]\" or \"~>[command name]\"";
     }
 
     async relayCommand(message) {

@@ -92,6 +92,22 @@ export default class Database {
         });
     }
 
+    getAllCustomCommands() {
+        Logger.log(`Getting all commands with full data`);
+        return new Promise((resolve, reject) => {
+            try {
+                const rows = this.sqliteDatabase.prepare(`
+                SELECT command_name, command_text, attachment_path
+                FROM CustomCommands
+                ORDER BY rowid ASC, command_name ASC`).all();
+                resolve(rows);
+            } catch (err) {
+                Logger.log(`SQL Error: ${err.message}`, MessageType.WARNING);
+                resolve(null);
+            }
+        });
+    }
+
     getSingleCommand(commandName) {
         return new Promise((resolve, reject) => {
             let rows;

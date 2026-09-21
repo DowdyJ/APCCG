@@ -11,7 +11,7 @@ process.on('uncaughtException', (err) => {
 
 let client = CustomClient.instance();
 
-client.on('ready', () => {
+client.on('clientReady', () => {
   console.log(`Logged in as ${client?.user?.tag}`);
 });
 

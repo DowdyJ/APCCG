@@ -205,25 +205,44 @@ export default class CommandCustom extends ApccgSlashCommand {
             return false;
         }
 
+        const groups = new Map();
+        for (const row of res) {
+            if (!groups.has(row.command_name)) groups.set(row.command_name, []);
+            groups.get(row.command_name).push(row);
+        }
+        const uniqueNames = [...groups.keys()];
+
         const batches = [];
-        for (let i = 0; i < res.length; i += CUSTOM_LIST_BATCH_SIZE) {
-            batches.push(res.slice(i, i + CUSTOM_LIST_BATCH_SIZE));
+        for (let i = 0; i < uniqueNames.length; i += CUSTOM_LIST_BATCH_SIZE) {
+            batches.push(uniqueNames.slice(i, i + CUSTOM_LIST_BATCH_SIZE));
         }
 
         let currentBatch = 0;
+        let currentName = null;
+        let currentVariation = 0;
 
-        const buildComponents = (batchIndex, disabled = false) => {
-            const rows = [this.buildCustomListSelectRow(batches[batchIndex], disabled)];
+        const buildView = () => {
+            if (currentName == null) {
+                return { embed: this.buildCustomListIntroEmbed(batches, currentBatch, uniqueNames.length), files: [] };
+            }
+            const variations = groups.get(currentName);
+            return this.buildCustomEntryPreview(variations[currentVariation], currentVariation, variations.length);
+        };
+
+        const buildComponents = (disabled = false) => {
+            const variations = currentName == null ? null : groups.get(currentName);
+            const rows = [
+                this.buildCustomListSelectRow(batches[currentBatch], groups, disabled),
+                this.buildCustomVariationRow(variations, currentVariation, disabled),
+            ];
             if (batches.length > 1) {
-                rows.push(this.buildCustomListPageRow(batches, batchIndex, disabled));
+                rows.push(this.buildCustomListPageRow(batches, currentBatch, disabled));
             }
             return rows;
         };
 
-        await interaction.reply({
-            embeds: [this.buildCustomListIntroEmbed(batches, currentBatch, res.length)],
-            components: buildComponents(currentBatch),
-        });
+        const { embed: initialEmbed } = buildView();
+        await interaction.reply({ embeds: [initialEmbed], components: buildComponents() });
 
         const message = await interaction.fetchReply();
 
@@ -240,35 +259,31 @@ export default class CommandCustom extends ApccgSlashCommand {
                 return;
             }
 
-            if (componentInteraction.componentType === ComponentType.Button) {
-                if (componentInteraction.customId === "custom_list_prev") {
-                    currentBatch = Math.max(0, currentBatch - 1);
-                } else if (componentInteraction.customId === "custom_list_next") {
-                    currentBatch = Math.min(batches.length - 1, currentBatch + 1);
-                }
-
-                await componentInteraction.update({
-                    embeds: [this.buildCustomListIntroEmbed(batches, currentBatch, res.length)],
-                    components: buildComponents(currentBatch),
-                    attachments: [],
-                });
-                return;
+            if (componentInteraction.componentType === ComponentType.StringSelect) {
+                currentName = componentInteraction.values[0];
+                currentVariation = 0;
+            } else if (componentInteraction.customId === "custom_list_prev") {
+                currentBatch = Math.max(0, currentBatch - 1);
+                currentName = null;
+                currentVariation = 0;
+            } else if (componentInteraction.customId === "custom_list_next") {
+                currentBatch = Math.min(batches.length - 1, currentBatch + 1);
+                currentName = null;
+                currentVariation = 0;
+            } else if (componentInteraction.customId === "custom_list_variation_prev") {
+                currentVariation = Math.max(0, currentVariation - 1);
+            } else if (componentInteraction.customId === "custom_list_variation_next") {
+                const variations = groups.get(currentName) ?? [];
+                currentVariation = Math.min(variations.length - 1, currentVariation + 1);
             }
 
-            const entry = batches[currentBatch][Number(componentInteraction.values[0])];
-            const { embed, files } = this.buildCustomEntryPreview(entry);
-
-            await componentInteraction.update({
-                embeds: [embed],
-                components: buildComponents(currentBatch),
-                files,
-                attachments: [],
-            });
+            const { embed, files } = buildView();
+            await componentInteraction.update({ embeds: [embed], components: buildComponents(), files, attachments: [] });
         });
 
         collector.on("end", async () => {
             try {
-                await message.edit({ components: buildComponents(currentBatch, true) });
+                await message.edit({ components: buildComponents(true) });
             } catch (error) {
                 Logger.log(error.message);
             }
@@ -308,35 +323,41 @@ export default class CommandCustom extends ApccgSlashCommand {
         return new ActionRowBuilder().addComponents(prevButton, nextButton);
     }
 
-    buildCustomListSelectRow(entries, disabled = false) {
+    buildCustomListSelectRow(names, groups, disabled = false) {
         const menu = new StringSelectMenuBuilder()
             .setCustomId("custom_list_select")
             .setPlaceholder("Choose a command to preview...")
             .setDisabled(disabled);
 
-        const nameCounts = new Map();
-        for (const entry of entries) {
-            nameCounts.set(entry.command_name, (nameCounts.get(entry.command_name) ?? 0) + 1);
-        }
-        const seenSoFar = new Map();
-
-        entries.forEach((entry, index) => {
-            const total = nameCounts.get(entry.command_name);
-            let label = entry.command_name;
-            if (total > 1) {
-                const seen = (seenSoFar.get(entry.command_name) ?? 0) + 1;
-                seenSoFar.set(entry.command_name, seen);
-                label = `${entry.command_name} (${seen}/${total})`;
-            }
-
+        for (const name of names) {
+            const variations = groups.get(name);
             menu.addOptions({
-                label: label.slice(0, 100),
-                value: String(index),
-                emoji: this.getCustomEntryEmoji(entry),
+                label: name.slice(0, 100),
+                value: name,
+                description: variations.length > 1 ? `${variations.length} variations` : undefined,
+                emoji: this.getCustomEntryEmoji(variations[0]),
             });
-        });
+        }
 
         return new ActionRowBuilder().addComponents(menu);
+    }
+
+    buildCustomVariationRow(variations, variationIndex, disabled = false) {
+        const hasMultiple = variations != null && variations.length > 1;
+
+        const prevButton = new ButtonBuilder()
+            .setCustomId("custom_list_variation_prev")
+            .setLabel("◀ Variation")
+            .setStyle(ButtonStyle.Primary)
+            .setDisabled(disabled || !hasMultiple || variationIndex === 0);
+
+        const nextButton = new ButtonBuilder()
+            .setCustomId("custom_list_variation_next")
+            .setLabel("Variation ▶")
+            .setStyle(ButtonStyle.Primary)
+            .setDisabled(disabled || !hasMultiple || variationIndex === variations.length - 1);
+
+        return new ActionRowBuilder().addComponents(prevButton, nextButton);
     }
 
     getCustomEntryEmoji(entry) {
@@ -349,9 +370,13 @@ export default class CommandCustom extends ApccgSlashCommand {
         return "📝";
     }
 
-    buildCustomEntryPreview(entry) {
+    buildCustomEntryPreview(entry, variationIndex = 0, variationCount = 1) {
         const embed = new EmbedBuilder().setColor(0xffffff).setTitle(escapeMarkdown(entry.command_name));
         const files = [];
+
+        if (variationCount > 1) {
+            embed.setFooter({ text: `Variation ${variationIndex + 1}/${variationCount}` });
+        }
 
         if (entry.command_text) {
             const truncated =

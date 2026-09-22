@@ -8,6 +8,8 @@ export default class CommandFortune extends ApccgSlashCommand {
         return false;
     }
 
+    offensiveAllowedUserIds = ["134515224051974144"];
+
     commandData() {
         return new SlashCommandBuilder().setName("fortune").setDescription("Get a random fortune");
     }
@@ -15,7 +17,9 @@ export default class CommandFortune extends ApccgSlashCommand {
     async execute(args) {
         const interaction = args[0];
 
-        const fortuneText = await this.getUnattributedFortune();
+        const isOffensiveUser = this.offensiveAllowedUserIds.includes(interaction.user.id);
+
+        const fortuneText = await this.getUnattributedFortune(isOffensiveUser);
 
         if (fortuneText == null) {
             interaction.reply("Failed to consult the fortune spirits.");
@@ -28,9 +32,9 @@ export default class CommandFortune extends ApccgSlashCommand {
 
     // Fortune files near-universally mark a quote's source with a "-- Author" line.
     // There's no separate "quotes" database to exclude, so retry until we get one without it.
-    async getUnattributedFortune(maxAttempts = 25) {
+    async getUnattributedFortune(offensive, maxAttempts = 25) {
         for (let i = 0; i < maxAttempts; i++) {
-            const stdout = await this.runFortune();
+            const stdout = await this.runFortune(offensive);
             if (stdout == null) return null;
 
             const text = stdout.trim();
@@ -42,9 +46,10 @@ export default class CommandFortune extends ApccgSlashCommand {
         return null;
     }
 
-    runFortune() {
+    runFortune(offensive) {
         return new Promise((resolve) => {
-            child_process.exec("fortune -s", (error, stdout) => {
+            const command = offensive ? "fortune -s -o" : "fortune -s";
+            child_process.exec(command, (error, stdout) => {
                 if (error) {
                     Logger.log(`Error running fortune: ${error}`, MessageType.ERROR);
                     resolve(null);

@@ -4,6 +4,8 @@ COPY package*.json .npmrc .
 RUN npm install -g npm@11
 RUN npm install
 RUN apt-get update && apt-get install ffmpeg -y
+RUN apt-get install fortune-mod fortunes -y
+ENV PATH="${PATH}:/usr/games"
 COPY . .
 RUN --mount=type=secret,id=hmt ln -s /run/secrets/hmt /app/hmt.json
 RUN rm hmt.json

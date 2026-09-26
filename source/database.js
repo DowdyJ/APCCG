@@ -108,6 +108,14 @@ export default class Database {
         return this.getConfigValue("twitter_fix_url");
     }
 
+    setInstagramParallelMode(enabled) {
+        return this.setConfigValue("instagram_fix_parallel", enabled ? "true" : "false");
+    }
+
+    getInstagramParallelMode() {
+        return this.getConfigValue("instagram_fix_parallel");
+    }
+
     getAllCustomCommandNames() {
         Logger.log(`Getting all commands`);
         return new Promise((resolve, reject) => {
@@ -233,7 +241,7 @@ export default class Database {
     }
 
     addChannelToKPurge(channelId) {
-        Logger.log(`Adding channel to purge ${channelId}`);
+        Logger.log(`Adding channel to purge ${channelId}`, MessageType.VERBOSE);
         return new Promise((resolve, reject) => {
             try {
                 this.sqliteDatabase.prepare(`
@@ -248,7 +256,7 @@ export default class Database {
     }
 
     removeChannelToKPurge(channelId) {
-        Logger.log(`Removing channel to purge ${channelId}`);
+        Logger.log(`Removing channel to purge ${channelId}`, MessageType.VERBOSE);
         return new Promise((resolve, reject) => {
             try {
                 this.sqliteDatabase.prepare(`
@@ -263,7 +271,7 @@ export default class Database {
     }
 
     getAllChannelsToKPurge() {
-        Logger.log(`Retrieving all channels to purge`);
+        Logger.log(`Retrieving all channels to purge`, MessageType.VERBOSE);
         return new Promise((resolve, reject) => {
             try {
                 const rows = this.sqliteDatabase.prepare(`

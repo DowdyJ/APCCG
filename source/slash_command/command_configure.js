@@ -24,6 +24,17 @@ export default class CommandConfigure extends ApccgSlashCommand {
                             .setMinLength(2)
                             .setMaxLength(100)
                     )
+            )
+            .addSubcommand((input) =>
+                input
+                    .setName("instagram_parallel_mode")
+                    .setDescription("Toggle how Instagram mirrors are tried: in parallel (fastest success wins) or in priority order")
+                    .addBooleanOption((option) =>
+                        option
+                            .setName("enabled")
+                            .setDescription("true = race all mirrors at once; false (default) = try them one at a time in priority order")
+                            .setRequired(true)
+                    )
             );
     }
 
@@ -38,6 +49,8 @@ export default class CommandConfigure extends ApccgSlashCommand {
         switch (subcommandName) {
             case "twitter_fix_url":
                 return await this.configureTwitterCommand(interaction);
+            case "instagram_parallel_mode":
+                return await this.configureInstagramParallelCommand(interaction);
             default:
                 Logger.log("Invalid subcommand run on /configure", MessageType.ERROR);
         }
@@ -50,7 +63,8 @@ export default class CommandConfigure extends ApccgSlashCommand {
     }
 
     getDescription() {
-        return `**/configure twitter_fix_url** [domain] -> Set the replacement domain used for x.com/twitter.com links (e.g. vxtwitter.com)`;
+        return `**/configure twitter_fix_url** [domain] -> Set the replacement domain used for x.com/twitter.com links (e.g. vxtwitter.com)\n`
+            + `**/configure instagram_parallel_mode** [enabled] -> Toggle whether Instagram mirrors are raced in parallel or tried in priority order`;
     }
 
     async configureTwitterCommand(interaction) {
@@ -67,6 +81,20 @@ export default class CommandConfigure extends ApccgSlashCommand {
             interaction.reply(`Successfully set URL to "${replacementUrl}"`);
         } else {
             interaction.reply(`Failed to set URL to "${replacementUrl}"`);
+        }
+
+        return success;
+    }
+
+    async configureInstagramParallelCommand(interaction) {
+        const enabled = interaction.options.getBoolean("enabled");
+
+        const success = await Database.instance().setInstagramParallelMode(enabled);
+
+        if (success) {
+            interaction.reply(`Instagram mirror checks will now run ${enabled ? "in parallel (fastest success wins)" : "sequentially in priority order"}.`);
+        } else {
+            interaction.reply("Failed to update setting");
         }
 
         return success;
